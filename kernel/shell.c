@@ -62,8 +62,8 @@ void execute_command(char* cmd) {
         put_str("  mem      - Bellek istatistiklerini goster\n");
         put_str("  sleep N  - N milisaniye bekle (ornek: sleep 1000)\n");
         put_str("  echo ... - Mesaji ekrana yaz\n");
-        put_str("  ls       - PaFS kok dizinini listele\n");
-        put_str("  touch f  - PaFS'ta 'f' adinda dosya olustur\n");
+        put_str("  ls       - PAFS kok dizinini listele\n");
+        put_str("  touch f  - PAFS'ta 'f' adinda dosya olustur\n");
         put_str("  write f t- 'f' dosyasina 't' metnini yaz\n");
         put_str("  cat f    - 'f' dosyasini oku\n");
         put_str("  reboot   - Sistemi yeniden baslat\n");

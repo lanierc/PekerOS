@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-// PaFS (PekerOS File System) Ayarları
+// PAFS (PekerOS File System) Ayarları
 #define PAFS_MAGIC       0xAF5
 #define PAFS_BLOCK_SIZE  512
 #define PAFS_MAX_INODES  128
@@ -37,7 +37,7 @@ struct pafs_dir_entry {
     char name[28];               // Dosya/Klasör adı
 };
 
-// PaFS Fonksiyonları
+// PAFS Fonksiyonları
 void pafs_init(void);
 void pafs_format(void);
 int pafs_create(const char *name, int is_dir);
