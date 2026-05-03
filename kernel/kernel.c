@@ -8,6 +8,9 @@
 #include "task.h"
 #include "tss.h"
 #include "syscall.h"
+#include "pci.h"
+#include "vbe.h"
+#include "mouse.h"
 
 // Global değişkenler
 unsigned int terminal_row = 0;
@@ -32,6 +35,22 @@ void outw(unsigned short port, unsigned short val) {
 unsigned short inw(unsigned short port) {
     unsigned short ret;
     asm volatile ( "inw %1, %0" : "=a"(ret) : "Nd"(port) );
+    return ret;
+}
+
+void vbe_init(struct multiboot_info *mb_info);
+void vbe_put_pixel(int x, int y, unsigned int color);
+void vbe_clear_screen(unsigned int color);
+void vbe_draw_gradient();
+void vbe_draw_rect(int x, int y, int w, int h, unsigned int color);
+
+void outl(unsigned short port, unsigned int val) {
+    asm volatile ( "outl %0, %1" : : "a"(val), "Nd"(port) );
+}
+
+unsigned int inl(unsigned short port) {
+    unsigned int ret;
+    asm volatile ( "inl %1, %0" : "=a"(ret) : "Nd"(port) );
     return ret;
 }
 
@@ -160,6 +179,18 @@ void task2_func() {
     }
 }
 
+// Grafik Cizim Gorevi (Task)
+void graphics_task() {
+    while(1) {
+        // SADECE imleci guncelle (Piksel kurtarma yontemi ile cok hizli)
+        mouse_state_t* ms = mouse_get_state();
+        vbe_draw_cursor(ms->x, ms->y);
+        
+        // Cok kisa bir bekleme (Islemciyi yormamak icin)
+        for(int i = 0; i < 10000; i++) asm volatile("nop");
+    }
+}
+
 void user_mode_test() {
     while(1) {
         // Sistem çağrısı testi: syscall1(num, param1)
@@ -217,6 +248,22 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     pafs_init();
     pafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
 
+    // Donanim Kesfi
+    pci_init();
+
+    // Grafik Modu Baslatma
+    vbe_init(mbi);
+    vbe_draw_gradient(); // Arka plani bir kez ciz
+    vbe_draw_rect(100, 100, 200, 150, 0x00E67E22); // Statik kutular
+    vbe_draw_rect(400, 300, 100, 100, 0x002ECC71);
+    vbe_update(); // Ekrana yansit
+
+    vbe_write("\n   PEKER OS - Graphics Mode Activated\n", 0x00FFFFFF);
+    vbe_write("   ----------------------------------\n", 0x00F1C40F);
+    vbe_write("   Welcome to the future of PekerOS!\n", 0x00ECf0F1);
+
+    vbe_update(); // HER SEYI EKRANA YANSIT
+
     // 4.4. Multitasking başlat
     init_multitasking();
     
@@ -225,19 +272,26 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
 
     create_task("gorev1", task1_func, 0); // Kernel task
     create_task("gorev2", task2_func, 0); // Kernel task
-    create_task("user_task", user_mode_test, 1); // RING 3 TASK!
+    // create_task("user_task", user_mode_test, 1); // RING 3 TASK! (Su anlik kapali)
 
     // 5. Zamanlayıcıyı başlat (100 Hz = her 10ms'de bir tick)
     init_timer(100);
     put_str("[OK] Zamanlayici yuklendi (100 Hz).\n");
 
+    // 6. Fare sürücüsünü başlat (IRQ12)
+    mouse_init();
+
     // 5. Klavye sürücüsünü başlat (IRQ1 handler'ı kurar ve IRQ1'i açar)
     init_keyboard();
     put_str("[OK] Klavye surucusu yuklendi.\n");
 
-    // 6. Shell'i başlat
+    // 7. Shell'i başlat
     put_str("[OK] fash shell baslatildi.\n\n");
     init_syscalls();
+
+    // Grafik gorevini baslat
+    create_task("graphics", graphics_task, 0);
+
     init_shell();
     // 7. Kesmeleri etkinleştir ve bekleme döngüsüne gir
     asm volatile("sti");

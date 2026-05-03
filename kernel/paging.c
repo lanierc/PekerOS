@@ -115,3 +115,40 @@ void page_fault(struct registers *r) {
     asm volatile("cli");
     for(;;) asm volatile("hlt");
 }
+
+void paging_map_memory(unsigned int phys, unsigned int virt, unsigned int size) {
+    unsigned int num_pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+    
+    for (unsigned int i = 0; i < num_pages; i++) {
+        unsigned int p = phys + (i * PAGE_SIZE);
+        unsigned int v = virt + (i * PAGE_SIZE);
+        
+        unsigned int pd_idx = v >> 22;
+        unsigned int pt_idx = (v >> 12) & 0x3FF;
+        
+        struct page_table *pt;
+        
+        if (!kernel_directory->entries[pd_idx].present) {
+            unsigned int pt_frame = alloc_frame();
+            pt = (struct page_table *)(pt_frame + 0xC0000000);
+            for(int j=0; j<1024; j++) pt->entries[j].present = 0;
+            
+            kernel_directory->entries[pd_idx].present = 1;
+            kernel_directory->entries[pd_idx].rw = 1;
+            kernel_directory->entries[pd_idx].user = 1;
+            kernel_directory->entries[pd_idx].pt_frame = (pt_frame >> 12);
+        } else {
+            pt = (struct page_table *)((kernel_directory->entries[pd_idx].pt_frame << 12) + 0xC0000000);
+        }
+        
+        pt->entries[pt_idx].present = 1;
+        pt->entries[pt_idx].rw = 1;
+        pt->entries[pt_idx].user = 1;
+        pt->entries[pt_idx].frame = (p >> 12);
+    }
+    
+    // Değişikliklerin etkili olması için TLB'yi temizle (CR3'ü tekrar yükleyerek)
+    // Fiziksel adresi kernel_directory'den çıkarıyoruz
+    unsigned int pd_phys = (unsigned int)kernel_directory - 0xC0000000;
+    asm volatile("mov %0, %%cr3" : : "r"(pd_phys));
+}

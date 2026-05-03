@@ -45,5 +45,6 @@ struct page_directory {
 // Paging Fonksiyonları
 void init_paging(void);
 void page_fault(struct registers *r);
+void paging_map_memory(unsigned int phys, unsigned int virt, unsigned int size);
 
 #endif

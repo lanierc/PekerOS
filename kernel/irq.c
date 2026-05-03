@@ -31,8 +31,8 @@ void irq_remap(void) {
     outb(0x21, 0x01);
     outb(0xA1, 0x01);
     
-    // Maskeleme: TUM KESMELER KAPALI (Hata ayıklama için)
-    outb(0x21, 0xFF); 
+    // Maskeleme: Kesmeleri kapali tut (IRQ2 haric - Slave PIC gecisi icin gerekli)
+    outb(0x21, 0xFB); 
     outb(0xA1, 0xFF); 
 }
 

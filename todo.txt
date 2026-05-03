@@ -53,12 +53,12 @@
 
 ---
 
-## 🟡 Faz 4: Donanım & Donanım Keşfi (Sıradaki)
-- [ ] **PCI Veri Yolu**
-    - [ ] Donanım tarama (Enumerate devices)
-- [ ] **Grafik Dünyası**
-    - [ ] VESA VBE (Grafik moduna geçiş - 800x600)
-    - [ ] Temel çizim fonksiyonları (Piksel, Çizgi, Dikdörtgen)
+## 🟢 Faz 4: Donanım & Donanım Keşfi (Tamamlandı)
+- [x] **PCI Veri Yolu**
+    - [x] Donanım tarama (Enumerate devices)
+- [x] **Grafik Dünyası**
+    - [x] VESA VBE (Grafik moduna geçiş - 800x600)
+    - [x] Temel çizim fonksiyonları (Piksel, Çizgi, Dikdörtgen)
 - [ ] **Mouse Sürücüsü**
     - [ ] PS/2 Fare desteği
 

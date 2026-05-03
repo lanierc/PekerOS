@@ -26,9 +26,13 @@ gcc $CFLAGS -c kernel/ata.c -o output/ata.o
 gcc $CFLAGS -c kernel/task.c -o output/task.o
 gcc $CFLAGS -c kernel/tss.c -o output/tss.o
 gcc $CFLAGS -c kernel/syscall.c -o output/syscall.o
+gcc $CFLAGS -c kernel/pci.c -o output/pci.o
+gcc $CFLAGS -c kernel/vbe.c -o output/vbe.o
+gcc $CFLAGS -c kernel/font.c -o output/font.o
+gcc $CFLAGS -c kernel/mouse.c -o output/mouse.o
 
 # Linkleme
-ld -m elf_i386 -T linker.ld -o output/pekeros.bin output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o output/keyboard.o output/shell.o output/timer.o output/pmm.o output/paging.o output/kheap.o output/pafs.o output/ata.o output/task.o output/tss.o output/syscall.o
+ld -m elf_i386 -T linker.ld -o output/pekeros.bin output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o output/keyboard.o output/shell.o output/timer.o output/pmm.o output/paging.o output/kheap.o output/pafs.o output/ata.o output/task.o output/tss.o output/syscall.o output/pci.o output/vbe.o output/font.o output/mouse.o
 
 # Sanal Disk Oluştur (10 MB, eğer yoksa)
 if [ ! -f output/disk.img ]; then

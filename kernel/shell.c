@@ -3,6 +3,7 @@
 #include "timer.h"
 #include "pmm.h"
 #include "pafs.h"
+#include "pci.h"
 
 // Metin fonksiyonları (kernel.c içinde tanımladık)
 extern int strcmp(const char *s1, const char *s2);
@@ -58,6 +59,7 @@ void execute_command(char* cmd) {
         put_str("  clear    - Ekrani temizle\n");
         put_str("  version  - Sistem surumunu goster\n");
         put_str("  uptime   - Sistemin calisme suresini goster\n");
+        put_str("  pci      - PCI aygitlarini tara ve listele\n");
         put_str("  ticks    - Zamanlayici tick sayisini goster\n");
         put_str("  mem      - Bellek istatistiklerini goster\n");
         put_str("  sleep N  - N milisaniye bekle (ornek: sleep 1000)\n");
@@ -88,6 +90,9 @@ void execute_command(char* cmd) {
         put_str(" saniye (");
         put_int(timer_get_ticks());
         put_str(" tick)\n");
+    }
+    else if (strcmp(cmd, "pci") == 0) {
+        pci_init();
     }
     else if (strcmp(cmd, "ticks") == 0) {
         put_str("Toplam tick: ");

@@ -8,6 +8,7 @@ SECTIONS
     __text_start = .;
     /* LMA (Fiziksel Yükleme Adresi): VMA - 3GB */
     .text ALIGN(4K) : AT(ADDR(.text) - 0xC0000000) { 
+        __multiboot_start = .;
         *(.multiboot) 
         *(.text) 
     }
@@ -30,3 +31,8 @@ SECTIONS
     
     __kernel_end = .;
 }
+
+__phys_multiboot_start = __multiboot_start - 0xC0000000;
+__phys_text_start = __text_start - 0xC0000000;
+__phys_bss_end = __bss_end - 0xC0000000;
+__phys_start = _start - 0xC0000000;
