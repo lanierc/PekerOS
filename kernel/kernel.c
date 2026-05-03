@@ -181,7 +181,7 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     // 3. Ekranı temizle ve karşılama mesajı göster
     clear_scr();
     put_str("========================================\n");
-    put_str("        FerkanOS v0.2 - Kernel\n");
+    put_str("         PekerOS v0.2 - Kernel\n");
     put_str("========================================\n\n");
 
     if (magic != MULTIBOOT_MAGIC) {
@@ -215,7 +215,7 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     kfree(test_ptr2);
 
     fafs_init();
-    fafs_write("merhaba.txt", "FerkanOS Dosya Sistemine Hosgeldiniz!", 37);
+    fafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
 
     // 4.4. Multitasking başlat
     init_multitasking();

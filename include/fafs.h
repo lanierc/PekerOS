@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-// FAFS (FerkanOS File System) Ayarları
+// FAFS (PekerOS File System) Ayarları
 #define FAFS_MAGIC       0xFAFC
 #define FAFS_BLOCK_SIZE  512
 #define FAFS_MAX_INODES  128

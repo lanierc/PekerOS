@@ -1,6 +1,6 @@
-# 🌌 FerkanOS
+# 🌌 PekerOS
 
-FerkanOS, x86 mimarisi üzerinde sıfırdan geliştirilen, UNIX benzeri (UNIX-like) bir hobi işletim sistemidir. Bu proje, çekirdek (kernel) seviyesinde bellek yönetimi, çoklu görev (multitasking) ve kullanıcı modu izolasyonu gibi temel işletim sistemi kavramlarını öğrenmek ve uygulamak amacıyla geliştirilmiştir.
+PekerOS, x86 mimarisi üzerinde sıfırdan geliştirilen, UNIX benzeri (UNIX-like) bir hobi işletim sistemidir. Bu proje, çekirdek (kernel) seviyesinde bellek yönetimi, çoklu görev (multitasking) ve kullanıcı modu izolasyonu gibi temel işletim sistemi kavramlarını öğrenmek ve uygulamak amacıyla geliştirilmiştir.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Arch](https://img.shields.io/badge/architecture-x86_i386-orange.svg)
@@ -23,7 +23,7 @@ FerkanOS, x86 mimarisi üzerinde sıfırdan geliştirilen, UNIX benzeri (UNIX-li
 - **Context Switching:** Assembly seviyesinde hızlı görev değişimi.
 
 ### 📁 Depolama ve Dosya Sistemi
-- **FAFS (Ferkanos Advanced File System):** Kendi özel dosya sistemi mimarimiz.
+- **FAFS (PekerOS Advanced File System):** Kendi özel dosya sistemi mimarimiz.
 - **ATA/IDE Sürücüsü:** Gerçek sabit disk okuma ve yazma desteği.
 
 ## 🛠️ Kurulum ve Derleme
@@ -56,4 +56,4 @@ bash scripts/run.sh
 Bu proje **MIT Lisansı** altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakabilirsiniz.
 
 ---
-*Geliştiren: FerkanOS Ekibi & Antigravity AI*
+*Geliştiren: PekerOS Ekibi & Antigravity AI*

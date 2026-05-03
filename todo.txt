@@ -1,4 +1,4 @@
-# FerkanOS Geliştirme Yol Haritası
+# PekerOS Geliştirme Yol Haritası
 
 ## 🟢 Faz 0: Temel Altyapı (Tamamlandı)
 - [x] GDT (Global Descriptor Table) kurulumu
