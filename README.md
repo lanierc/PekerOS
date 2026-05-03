@@ -1,38 +1,38 @@
-# PekerOS 🛡️
+# PekerOS
 
-PekerOS, x86 mimarisi üzerinde sıfırdan geliştirilen, modern grafik arayüzüne ve gelişmiş sürücü desteğine sahip bir mikroçekirdek (microkernel) denemesidir.
+PekerOS is a custom-built, 32-bit x86 microkernel-based operating system developed from scratch. It features a modern graphical interface, a robust multitasking engine, and a high-performance graphics driver architecture.
 
-## 🚀 Son Güncellemeler: Grafik Devrimi
-PekerOS, Faz 4 kapsamında metin tabanlı arayüzden (VGA Text Mode) modern VESA VBE grafik moduna geçiş yapmıştır.
+## 🚀 Recent Milestones: The Graphics Evolution
+In Phase 4, PekerOS successfully transitioned from legacy VGA Text Mode to a modern VESA VBE (VESA BIOS Extensions) graphical environment.
 
-### Öne Çıkan Özellikler:
-- **Grafik Motoru (VBE):** 800x600 çözünürlükte 32-bit renk derinliği. Bochs Graphics Adapter (BGA) üzerinden PCI tabanlı donanım hızlandırma desteği.
-- **Ultra-Hızlı İmleç Sistemi:** "Sprite Saving" tekniği ile sadece 8x8 piksellik alanlar güncellenerek %99.9 performans artışı sağlandı.
-- **PS/2 Fare Sürücüsü:** Kesme tabanlı (IRQ12), 3-byte paket senkronizasyonlu ve matematiksel işaret düzeltmeli pürüzsüz imleç hareketi.
-- **Multitasking Render:** Grafik çizim işlemleri, çekirdeğin multitasking yapısı kullanılarak bağımsız bir görev (Graphics Task) üzerinden asenkron olarak yürütülür.
-- **Bitmap Font Sistemi:** 8x16 bitmap font motoru ile grafik modunda yüksek okunabilirlikli metin çıktısı.
+### Key Technical Features:
+- **VBE Graphics Engine:** Supports 800x600 resolution with 32-bit color depth. Integrated Bochs Graphics Adapter (BGA) support via PCI discovery for hardware-accelerated framebuffer access.
+- **High-Performance Sprite Engine:** Implements a "Sprite Saving" (Pixel Recovery) technique. Instead of redrawing the full screen, the system only backups and restores the 8x8 pixel region under the cursor, reducing CPU load by 99.9%.
+- **Advanced PS/2 Mouse Driver:** Interrupt-driven (IRQ12) with 3-byte packet synchronization. Features custom sign-bit logic and boundary enforcement for smooth, jitter-free cursor movement.
+- **Multitasking Rendering Pipeline:** Leveraging the kernel's scheduler, graphics rendering is handled by a dedicated asynchronous task (Graphics Task), ensuring that UI updates do not block the system shell.
+- **Bitmap Font Engine:** Custom 8x16 bitmap font renderer for high-readability text output in graphical modes.
 
-## 🛠️ Teknik Altyapı
-- **Bootloader:** Multiboot uyumlu (GRUB/QEMU).
-- **Bellek Yönetimi:** Paging (Sayfalama) ve Fiziksel Bellek Yönetimi (PMM).
-- **Dosya Sistemi:** PAFS (Peker Advanced File System).
-- **Kesme Yönetimi:** GDT, IDT ve PIC Remapping (IRQ 0-15).
-- **Kabuk:** `fash` (Ferkan Advanced Shell).
+## 🛠️ Core Architecture
+- **Bootloader:** Multiboot compliant (tested with GRUB and QEMU).
+- **Memory Management:** Integrated Paging and Physical Memory Manager (PMM).
+- **File System:** PAFS (Peker Advanced File System).
+- **Interrupt Handling:** Global Descriptor Table (GDT), Interrupt Descriptor Table (IDT), and Master/Slave PIC remapping (IRQ 0-15).
+- **Shell:** `fash` (Ferkan Advanced Shell) featuring system commands and multitasking control.
 
-## 🔨 Derleme ve Çalıştırma
+## 🔨 Build and Run
 
-Sistemi derlemek için:
+To compile the kernel and drivers:
 ```bash
 bash scripts/compile.sh
 ```
 
-QEMU üzerinde çalıştırmak için:
+To launch the OS in QEMU:
 ```bash
 bash scripts/run.sh
 ```
 
-## 👨‍💻 Geliştirici
+## 👨‍💻 Developer
 **Muhammed Yasir PEKER**
 
 ---
-*PekerOS, bir işletim sisteminden daha fazlası; bir mühendislik tutkusudur.* 🚀
+*PekerOS: A passion for low-level engineering and operating system design.* 🚀
