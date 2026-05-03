@@ -2,7 +2,7 @@
 
 PekerOS is a custom-built, 32-bit x86 microkernel-based operating system developed from scratch. It features a modern graphical interface, a robust multitasking engine, and a high-performance graphics driver architecture.
 
-## 🚀 Recent Milestones: The Graphics Evolution
+## Recent Milestones: The Graphics Evolution
 In Phase 4, PekerOS successfully transitioned from legacy VGA Text Mode to a modern VESA VBE (VESA BIOS Extensions) graphical environment.
 
 ### Key Technical Features:
@@ -12,14 +12,14 @@ In Phase 4, PekerOS successfully transitioned from legacy VGA Text Mode to a mod
 - **Multitasking Rendering Pipeline:** Leveraging the kernel's scheduler, graphics rendering is handled by a dedicated asynchronous task (Graphics Task), ensuring that UI updates do not block the system shell.
 - **Bitmap Font Engine:** Custom 8x16 bitmap font renderer for high-readability text output in graphical modes.
 
-## 🛠️ Core Architecture
+## Core Architecture
 - **Bootloader:** Multiboot compliant (tested with GRUB and QEMU).
 - **Memory Management:** Integrated Paging and Physical Memory Manager (PMM).
 - **File System:** PAFS (Peker Advanced File System).
 - **Interrupt Handling:** Global Descriptor Table (GDT), Interrupt Descriptor Table (IDT), and Master/Slave PIC remapping (IRQ 0-15).
 - **Shell:** `fash` (Ferkan Advanced Shell) featuring system commands and multitasking control.
 
-## 🔨 Build and Run
+## Build and Run
 
 To compile the kernel and drivers:
 ```bash
@@ -31,7 +31,7 @@ To launch the OS in QEMU:
 bash scripts/run.sh
 ```
 
-## 👨‍💻 Developer
+## Developer
 **Muhammed Yasir PEKER**
 
 ---
