@@ -1,0 +1,290 @@
+
+Merging object attributes
+
+
+Merging program properties
+
+Removed property 0xc0010001 to merge kernel.o (0x1) and boot.o (not found)
+Removed property 0xc0010002 to merge kernel.o (0x0) and boot.o (not found)
+Removed property 0xc0010001 to merge kernel.o (not found) and gdt.o (0x1)
+Removed property 0xc0010002 to merge kernel.o (not found) and gdt.o (0x0)
+Removed property 0xc0010001 to merge kernel.o (not found) and idt.o (0x9)
+Removed property 0xc0010002 to merge kernel.o (not found) and idt.o (0x1)
+Removed property 0xc0010001 to merge kernel.o (not found) and irq.o (0x1)
+Removed property 0xc0010002 to merge kernel.o (not found) and irq.o (0x0)
+Removed property 0xc0010001 to merge kernel.o (not found) and keyboard.o (0x1)
+Removed property 0xc0010002 to merge kernel.o (not found) and keyboard.o (0x0)
+Removed property 0xc0010001 to merge kernel.o (not found) and shell.o (0x9)
+Removed property 0xc0010002 to merge kernel.o (not found) and shell.o (0x1)
+
+Girdi bölümleri çıkarıldı
+
+ .group         0x00000000        0x8 kernel.o
+ .group         0x00000000        0x8 kernel.o
+ .group         0x00000000        0x8 kernel.o
+ .group         0x00000000        0x8 kernel.o
+ .group         0x00000000        0x8 kernel.o
+ .note.gnu.property
+                0x00000000       0x28 kernel.o
+ .group         0x00000000        0x8 gdt.o
+ .text.__x86.get_pc_thunk.bx
+                0x00000000        0x4 gdt.o
+ .note.gnu.property
+                0x00000000       0x28 gdt.o
+ .group         0x00000000        0x8 idt.o
+ .group         0x00000000        0x8 idt.o
+ .group         0x00000000        0x8 idt.o
+ .text.__x86.get_pc_thunk.dx
+                0x00000000        0x4 idt.o
+ .text.__x86.get_pc_thunk.bx
+                0x00000000        0x4 idt.o
+ .text.__x86.get_pc_thunk.di
+                0x00000000        0x4 idt.o
+ .note.gnu.property
+                0x00000000       0x28 idt.o
+ .group         0x00000000        0x8 irq.o
+ .group         0x00000000        0x8 irq.o
+ .text.__x86.get_pc_thunk.ax
+                0x00000000        0x4 irq.o
+ .text.__x86.get_pc_thunk.bx
+                0x00000000        0x4 irq.o
+ .note.gnu.property
+                0x00000000       0x28 irq.o
+ .group         0x00000000        0x8 keyboard.o
+ .text.__x86.get_pc_thunk.bx
+                0x00000000        0x4 keyboard.o
+ .note.gnu.property
+                0x00000000       0x28 keyboard.o
+ .group         0x00000000        0x8 shell.o
+ .group         0x00000000        0x8 shell.o
+ .text.__x86.get_pc_thunk.dx
+                0x00000000        0x4 shell.o
+ .text.__x86.get_pc_thunk.bx
+                0x00000000        0x4 shell.o
+ .note.gnu.property
+                0x00000000       0x28 shell.o
+
+Bellek Ayarları
+
+İsim            Orijin             Uzunluk            Özellikler
+*default*        0x00000000         0xffffffff
+
+Bağlayıcı betiği ve bellek eşlemesi
+
+                0x00100000                        . = 0x100000
+
+.text           0x00100000      0xfdd
+ *(.multiboot)
+ .multiboot     0x00100000        0xc boot.o
+ *(.text)
+ *fill*         0x0010000c        0x4 
+ .text          0x00100010       0xb0 boot.o
+                0x00100010                gdt_ptr_asm
+                0x00100020                idt_ptr_asm
+                0x00100026                _start
+                0x00100035                gdt_flush
+                0x00100052                idt_flush
+                0x001000ae                isr0
+                0x001000b4                irq0
+                0x001000ba                irq1
+ .text          0x001000c0      0x673 kernel.o
+                0x00100120                serial_init
+                0x00100170                serial_putc
+                0x00100190                serial_puts
+                0x00100200                outb
+                0x00100210                inb
+                0x00100220                update_cursor
+                0x00100270                clear_scr
+                0x001002f0                scroll
+                0x00100320                put_char
+                0x00100420                put_str
+                0x00100450                put_int
+                0x00100510                put_hex
+                0x00100570                strlen
+                0x001005a0                strcmp
+                0x001005f0                kernel_main
+ *fill*         0x00100733        0xd 
+ .text          0x00100740       0xfa gdt.o
+                0x00100740                gdt_set_gate
+                0x001007b0                init_gdt
+ *fill*         0x0010083a        0x6 
+ .text          0x00100840      0x272 idt.o
+                0x00100840                idt_set_gate
+                0x00100890                isr_handler
+                0x00100910                init_idt
+ *fill*         0x00100ab2        0xe 
+ .text          0x00100ac0      0x14c irq.o
+                0x00100ac0                irq_install_handler
+                0x00100ae0                irq_uninstall_handler
+                0x00100b00                irq_remap
+                0x00100ba0                irq_handler
+ *fill*         0x00100c0c        0x4 
+ .text          0x00100c10       0xcd keyboard.o
+                0x00100c10                keyboard_handler
+                0x00100ca0                init_keyboard
+ *fill*         0x00100cdd        0x3 
+ .text          0x00100ce0      0x2fd shell.o
+                0x00100ce0                print_prompt
+                0x00100d00                init_shell
+                0x00100d60                execute_command
+                0x00100ee0                shell_input
+
+.iplt           0x00100fdd        0x0
+ .iplt          0x00100fdd        0x0 boot.o
+
+.text.__x86.get_pc_thunk.ax
+                0x00100fdd        0x4
+ .text.__x86.get_pc_thunk.ax
+                0x00100fdd        0x4 kernel.o
+                0x00100fdd                __x86.get_pc_thunk.ax
+
+.text.__x86.get_pc_thunk.dx
+                0x00100fe1        0x4
+ .text.__x86.get_pc_thunk.dx
+                0x00100fe1        0x4 kernel.o
+                0x00100fe1                __x86.get_pc_thunk.dx
+
+.text.__x86.get_pc_thunk.cx
+                0x00100fe5        0x4
+ .text.__x86.get_pc_thunk.cx
+                0x00100fe5        0x4 kernel.o
+                0x00100fe5                __x86.get_pc_thunk.cx
+
+.text.__x86.get_pc_thunk.bx
+                0x00100fe9        0x4
+ .text.__x86.get_pc_thunk.bx
+                0x00100fe9        0x4 kernel.o
+                0x00100fe9                __x86.get_pc_thunk.bx
+
+.text.__x86.get_pc_thunk.di
+                0x00100fed        0x4
+ .text.__x86.get_pc_thunk.di
+                0x00100fed        0x4 kernel.o
+                0x00100fed                __x86.get_pc_thunk.di
+
+.rodata         0x00101000      0x141
+ *(.rodata)
+ .rodata        0x00101000        0x4 kernel.o
+                0x00101000                video_memory
+ *fill*         0x00101004       0x1c 
+ .rodata        0x00101020      0x121 keyboard.o
+
+.rodata.str1.1  0x00101141      0x175
+ .rodata.str1.1
+                0x00101141      0x175 kernel.o
+                                 0xc0 (gevşetmeden önceki boyut)
+ .rodata.str1.1
+                0x001012b6        0x0 idt.o
+                                 0x5c (gevşetmeden önceki boyut)
+ .rodata.str1.1
+                0x001012b6        0x0 shell.o
+                                 0x59 (gevşetmeden önceki boyut)
+
+.rodata.str1.4  0x001012b8      0x238
+ .rodata.str1.4
+                0x001012b8      0x238 kernel.o
+                                0x10c (gevşetmeden önceki boyut)
+ .rodata.str1.4
+                0x001014f0        0x0 idt.o
+                                 0xb8 (gevşetmeden önceki boyut)
+ .rodata.str1.4
+                0x001014f0        0x0 shell.o
+                                 0x74 (gevşetmeden önceki boyut)
+
+.rodata.cst2    0x001014f0        0x2
+ .rodata.cst2   0x001014f0        0x2 kernel.o
+
+.eh_frame       0x001014f4      0x678
+ .eh_frame      0x001014f4      0x28c kernel.o
+ .eh_frame      0x00101780       0x5c gdt.o
+                                 0x88 (gevşetmeden önceki boyut)
+ .eh_frame      0x001017dc       0xac idt.o
+                                0x100 (gevşetmeden önceki boyut)
+ .eh_frame      0x00101888      0x100 irq.o
+                                0x140 (gevşetmeden önceki boyut)
+ .eh_frame      0x00101988       0x7c keyboard.o
+                                 0xa8 (gevşetmeden önceki boyut)
+ .eh_frame      0x00101a04      0x168 shell.o
+                                0x1a8 (gevşetmeden önceki boyut)
+
+.rodata.cst4    0x00101b6c        0x4
+ .rodata.cst4   0x00101b6c        0x4 gdt.o
+
+.rel.dyn        0x00101b70        0x0
+ .rel.got       0x00101b70        0x0 boot.o
+ .rel.iplt      0x00101b70        0x0 boot.o
+
+.data           0x00102000        0x0
+ *(.data)
+ .data          0x00102000        0x0 kernel.o
+ .data          0x00102000        0x0 gdt.o
+ .data          0x00102000        0x0 idt.o
+ .data          0x00102000        0x0 irq.o
+ .data          0x00102000        0x0 keyboard.o
+ .data          0x00102000        0x0 shell.o
+
+.got            0x00101b70        0x4
+ .got           0x00101b70        0x4 boot.o
+
+.got.plt        0x00101b74        0xc
+ .got.plt       0x00101b74        0xc boot.o
+                0x00101b74                _GLOBAL_OFFSET_TABLE_
+
+.igot.plt       0x00101b80        0x0
+ .igot.plt      0x00101b80        0x0 boot.o
+
+.bss            0x00102000     0x49c0
+ *(COMMON)
+ *(.bss)
+ .bss           0x00102000     0x4000 boot.o
+ .bss           0x00106000        0x8 kernel.o
+                0x00106000                terminal_col
+                0x00106004                terminal_row
+ *fill*         0x00106008        0x8 
+ .bss           0x00106010       0x28 gdt.o
+                0x00106010                gdt_entries
+ *fill*         0x00106038        0x8 
+ .bss           0x00106040      0x800 idt.o
+                0x00106040                idt_entries
+ .bss           0x00106840       0x40 irq.o
+                0x00106840                irq_routines
+ .bss           0x00106880        0x4 keyboard.o
+ *fill*         0x00106884       0x1c 
+ .bss           0x001068a0      0x120 shell.o
+LOAD boot.o
+LOAD kernel.o
+LOAD gdt.o
+LOAD idt.o
+LOAD irq.o
+LOAD keyboard.o
+LOAD shell.o
+OUTPUT(ferkanos.bin elf32-i386)
+
+.comment        0x00000000       0x1b
+ .comment       0x00000000       0x1b kernel.o
+                                 0x1c (gevşetmeden önceki boyut)
+ .comment       0x0000001b        0x0 gdt.o
+                                 0x1c (gevşetmeden önceki boyut)
+ .comment       0x0000001b        0x0 idt.o
+                                 0x1c (gevşetmeden önceki boyut)
+ .comment       0x0000001b        0x0 irq.o
+                                 0x1c (gevşetmeden önceki boyut)
+ .comment       0x0000001b        0x0 keyboard.o
+                                 0x1c (gevşetmeden önceki boyut)
+ .comment       0x0000001b        0x0 shell.o
+                                 0x1c (gevşetmeden önceki boyut)
+
+.note.GNU-stack
+                0x00000000        0x0
+ .note.GNU-stack
+                0x00000000        0x0 kernel.o
+ .note.GNU-stack
+                0x00000000        0x0 gdt.o
+ .note.GNU-stack
+                0x00000000        0x0 idt.o
+ .note.GNU-stack
+                0x00000000        0x0 irq.o
+ .note.GNU-stack
+                0x00000000        0x0 keyboard.o
+ .note.GNU-stack
+                0x00000000        0x0 shell.o

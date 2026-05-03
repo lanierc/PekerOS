@@ -1,0 +1,1 @@
+qemu-system-i386 -kernel output/ferkanos.bin -drive file=output/disk.img,format=raw,index=0,media=disk

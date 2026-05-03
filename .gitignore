@@ -1,0 +1,18 @@
+# Derleme Dosyaları
+output/
+*.o
+*.bin
+*.iso
+*.img
+
+# Geçici ve Log Dosyaları
+*.log
+todo.txt.bak
+.gemini/
+
+# İşletim Sistemi İmajları
+disk.img
+ferkanos.bin
+
+# OS X Dosyaları
+.DS_Store

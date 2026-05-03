@@ -1,0 +1,74 @@
+# FerkanOS Geliştirme Yol Haritası
+
+## 🟢 Faz 0: Temel Altyapı (Tamamlandı)
+- [x] GDT (Global Descriptor Table) kurulumu
+- [x] IDT (Interrupt Descriptor Table) kurulumu
+- [x] ISR & IRQ mekanizması
+- [x] PIC (Programmable Interrupt Controller) Remapping
+- [x] Klavye Sürücüsü (Türkçe Q desteği)
+- [x] PIT (Programmable Interval Timer) - 100Hz
+- [x] VGA Metin Modu Sürücüsü (Kaydırma, Renk desteği)
+- [x] Temel Shell (fash v0.1)
+
+---
+
+## 🟡 Faz 1: Bellek Yönetimi (Sıradaki Hedef)
+- [x] **Fiziksel Bellek Yöneticisi (PMM)**
+    - [x] Multiboot bellek haritasını (mmap) okuma
+    - [x] Bitmap tabanlı sayfa takibi (4KB bloklar)
+    - [x] `alloc_frame()` / `free_frame()` fonksiyonları
+- [ ] **Sanal Bellek & Sayfalama (Paging)**
+    - [x] Page Directory ve Page Table kurulumu
+    - [x] Bellek koruma (Read-only / Supervisor)
+    - [x] Higher Half Kernel (Kernel'ın 3GB+ adresine taşınması)
+- [x] **Dinamik Bellek (Kernel Heap)**
+    - [x] `kmalloc()` ve `kfree()` implementasyonu
+
+---
+
+## 🟢 Faz 2: Depolama ve Dosya Sistemi (Tamamlandı)
+- [x] **ATA/IDE Sürücüsü**
+    - [x] LBA 28/48 bit modunda disk okuma/yazma desteği
+- [x] **Dosya Sistemi (FAFS)**
+    - [x] Özel FAFS mimarisinin tasarımı (Superblock, Inode, Block)
+    - [x] RAM tabanlı Sanal Disk implementasyonu
+    - [x] Dosya oluşturma, okuma, yazma
+- [x] **Shell Geliştirmeleri**
+    - [x] `ls`, `cat`, `touch`, `write` komutlarının eklenmesi
+    - [x] Komut geçmişi (History)
+
+---
+
+## 🟢 Faz 3: Çoklu Görev & Kullanıcı Modu (Tamamlandı)
+- [x] **Multitasking (Çoklu Görev)**
+    - [x] Task yapısı (TCB - Task Control Block)
+    - [x] Context Switching (Görev değişimi)
+    - [x] Round Robin Scheduler
+- [x] **Kullanıcı Modu (Ring 3)**
+    - [x] TSS (Task State Segment) kurulumu
+    - [x] Kernel modundan User moda geçiş
+- [x] **Sistem Çağrıları (Syscalls)**
+    - [x] `int 0x80` mekanizması
+    - [x] Standart syscall kütüphanesi (write, uptime)
+
+---
+
+## 🟡 Faz 4: Donanım & Donanım Keşfi (Sıradaki)
+- [ ] **PCI Veri Yolu**
+    - [ ] Donanım tarama (Enumerate devices)
+- [ ] **Grafik Dünyası**
+    - [ ] VESA VBE (Grafik moduna geçiş - 800x600)
+    - [ ] Temel çizim fonksiyonları (Piksel, Çizgi, Dikdörtgen)
+- [ ] **Mouse Sürücüsü**
+    - [ ] PS/2 Fare desteği
+
+---
+
+## 🔵 Faz 5: Uygulamalar & ELF Desteği
+- [ ] **ELF Yükleyici (ELF Loader)**
+    - [ ] Diskten .elf dosyalarını yükleyip çalıştırma
+- [ ] **Kullanıcı Uygulamaları**
+    - [ ] `vi` editörü portu (veya mini-vi)
+    - [ ] Basit oyunlar (Tetris, Snake)
+- [ ] **LibC Portu**
+    - [ ] Newlib veya musl portu hazırlığı

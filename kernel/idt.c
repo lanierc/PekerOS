@@ -1,0 +1,65 @@
+#include "idt.h"
+
+struct idt_entry_struct idt_entries[256] __attribute__((aligned(16)));
+
+// Assembly'deki pointer yapısı
+extern struct idt_ptr_struct idt_ptr_asm;
+
+extern void idt_flush();
+extern void irq0();
+extern void irq1();
+extern void int80_handler();
+extern void isr0();
+extern void isr14();
+
+void idt_set_gate(unsigned char num, unsigned int base, unsigned short sel, unsigned char flags) {
+    idt_entries[num].base_low = base & 0xFFFF;
+    idt_entries[num].base_high = (base >> 16) & 0xFFFF;
+    idt_entries[num].sel     = sel;
+    idt_entries[num].always0 = 0;
+    idt_entries[num].flags   = flags;
+}
+
+// ISR Handler - CPU istisnaları için
+void isr_handler(struct registers *regs) {
+    if (regs->int_no == 14) {
+        unsigned int cr2;
+        asm volatile("mov %%cr2, %0" : "=r" (cr2));
+        put_str("\n!!! PAGE FAULT !!! Adres: ");
+        put_hex(cr2);
+    }
+
+    put_str("\n!!! CPU Istisnasi: int_no=");
+    put_int(regs->int_no);
+    put_str(" err_code=");
+    put_hex(regs->err_code);
+    put_str(" eip=");
+    put_hex(regs->eip);
+    put_str("\nSistem durduruldu.\n");
+
+    // Kesmeleri kapat ve dur (triple fault'a yol açmaz)
+    asm volatile("cli");
+    for(;;) asm volatile("hlt");
+}
+
+void init_idt() {
+    idt_ptr_asm.limit = sizeof(struct idt_entry_struct) * 256 - 1;
+    idt_ptr_asm.base  = (unsigned int)&idt_entries;
+
+    // Tüm IDT girişlerini isr0 ile doldur (varsayılan yakalayıcı)
+    for(int i = 0; i < 256; i++) {
+        idt_set_gate(i, (unsigned int)isr0, 0x08, 0x8E);
+    }
+
+    // Page Fault (Exception 14) için özel isr
+    idt_set_gate(14, (unsigned int)isr14, 0x08, 0x8E);
+
+    // IRQ'lar için özel işleyiciler (PIC remap sonrası IDT 32-33)
+    idt_set_gate(32, (unsigned int)irq0, 0x08, 0x8E);
+    idt_set_gate(33, (unsigned int)irq1, 0x08, 0x8E);
+    
+    // Sistem Cagrisi (int 0x80) - DPL=3 (Kullanıcı çağırabilir)
+    idt_set_gate(128, (unsigned int)int80_handler, 0x08, 0xEE);
+
+    idt_flush();
+}
