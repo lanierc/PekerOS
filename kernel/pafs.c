@@ -1,10 +1,10 @@
-#include "fafs.h"
+#include "pafs.h"
 #include "kheap.h"
 #include "ata.h"
 
 // Bellek içi hızlı erişim işaretçileri
-static struct fafs_superblock *sb;
-static struct fafs_inode *inodes;
+static struct pafs_superblock *sb;
+static struct pafs_inode *inodes;
 static unsigned char *block_bitmap; // 0 = boş, 1 = dolu
 
 // Disk Düzeni (LBA Adresleri)
@@ -18,8 +18,8 @@ extern int strcmp(const char *s1, const char *s2);
 
 // Yardımcı: Boş bir inode bul
 static int find_free_inode() {
-    for (int i = 0; i < FAFS_MAX_INODES; i++) {
-        if (inodes[i].type == FAFS_TYPE_FREE) {
+    for (int i = 0; i < PaFS_MAX_INODES; i++) {
+        if (inodes[i].type == PaFS_TYPE_FREE) {
             return i;
         }
     }
@@ -28,7 +28,7 @@ static int find_free_inode() {
 
 // Yardımcı: Boş bir blok bul ve dolu işaretle
 static int alloc_block() {
-    for (int i = 0; i < FAFS_TOTAL_BLOCKS; i++) {
+    for (int i = 0; i < PaFS_TOTAL_BLOCKS; i++) {
         if (block_bitmap[i] == 0) {
             block_bitmap[i] = 1;
             sb->free_blocks--;
@@ -38,17 +38,17 @@ static int alloc_block() {
     return -1;
 }
 
-// FAFS Başlatma (Belleği ayır ve diskten oku)
-void fafs_init(void) {
-    sb = (struct fafs_superblock *)kmalloc(512); // Tam 1 sektör (512 byte) hizalı
-    inodes = (struct fafs_inode *)kmalloc(LBA_INODES_COUNT * 512);
+// PaFS Başlatma (Belleği ayır ve diskten oku)
+void pafs_init(void) {
+    sb = (struct pafs_superblock *)kmalloc(512); // Tam 1 sektör (512 byte) hizalı
+    inodes = (struct pafs_inode *)kmalloc(LBA_INODES_COUNT * 512);
     block_bitmap = (unsigned char *)kmalloc(512);
 
     // Diskin ilk sektörünü (Superblock) oku
     ata_read_sector(LBA_SUPERBLOCK, (unsigned char *)sb);
 
-    if (sb->magic == FAFS_MAGIC) {
-        put_str("[OK] FAFS disk bulundu. Yukleniyor...\n");
+    if (sb->magic == PaFS_MAGIC) {
+        put_str("[OK] PaFS disk bulundu. Yukleniyor...\n");
         // Inode'ları oku
         for (int i = 0; i < LBA_INODES_COUNT; i++) {
             ata_read_sector(LBA_INODES_START + i, (unsigned char *)inodes + (i * 512));
@@ -56,8 +56,8 @@ void fafs_init(void) {
         // Bitmap'i oku
         ata_read_sector(LBA_BITMAP, block_bitmap);
     } else {
-        put_str("[INFO] FAFS disk bulunamadi. Formatlaniyor...\n");
-        fafs_format();
+        put_str("[INFO] PaFS disk bulunamadi. Formatlaniyor...\n");
+        pafs_format();
     }
 }
 
@@ -71,41 +71,41 @@ static void save_metadata() {
 }
 
 // Diski biçimlendir
-void fafs_format(void) {
-    sb->magic = FAFS_MAGIC;
-    sb->total_blocks = FAFS_TOTAL_BLOCKS;
-    sb->total_inodes = FAFS_MAX_INODES;
-    sb->free_blocks = FAFS_TOTAL_BLOCKS - LBA_DATA_START; // İlk 16 blok metadata
-    sb->free_inodes = FAFS_MAX_INODES;
+void pafs_format(void) {
+    sb->magic = PaFS_MAGIC;
+    sb->total_blocks = PaFS_TOTAL_BLOCKS;
+    sb->total_inodes = PaFS_MAX_INODES;
+    sb->free_blocks = PaFS_TOTAL_BLOCKS - LBA_DATA_START; // İlk 16 blok metadata
+    sb->free_inodes = PaFS_MAX_INODES;
     
-    for (int i = 0; i < FAFS_MAX_INODES; i++) {
-        inodes[i].type = FAFS_TYPE_FREE;
+    for (int i = 0; i < PaFS_MAX_INODES; i++) {
+        inodes[i].type = PaFS_TYPE_FREE;
         inodes[i].size = 0;
     }
-    for (int i = 0; i < FAFS_TOTAL_BLOCKS; i++) {
+    for (int i = 0; i < PaFS_TOTAL_BLOCKS; i++) {
         // İlk 16 blok (Metadata) her zaman dolu işaretlenir
         if (i < LBA_DATA_START) block_bitmap[i] = 1;
         else block_bitmap[i] = 0;
     }
 
     int root_idx = find_free_inode();
-    inodes[root_idx].type = FAFS_TYPE_DIR;
+    inodes[root_idx].type = PaFS_TYPE_DIR;
     inodes[root_idx].size = 0;
     sb->root_inode = root_idx;
     sb->free_inodes--;
 
     save_metadata();
-    put_str("[OK] FAFS formatlandi. Kok dizini (/) hazir.\n");
+    put_str("[OK] PaFS formatlandi. Kok dizini (/) hazir.\n");
 }
 
 // Dosya oluştur
-int fafs_create(const char *name, int is_dir) {
+int pafs_create(const char *name, int is_dir) {
     if (sb->free_inodes == 0) return -1;
     
     // İsim uzunluk kontrolü (basit tutalım, max 27)
     
     // Root dizinine (Inode 0) yeni dosyayı eklemeliyiz.
-    struct fafs_inode *root = &inodes[sb->root_inode];
+    struct pafs_inode *root = &inodes[sb->root_inode];
     
     // Root'un data bloğu var mı?
     if (root->size == 0) {
@@ -120,17 +120,17 @@ int fafs_create(const char *name, int is_dir) {
     int new_ino = find_free_inode();
     if (new_ino == -1) return -1;
     
-    inodes[new_ino].type = is_dir ? FAFS_TYPE_DIR : FAFS_TYPE_FILE;
+    inodes[new_ino].type = is_dir ? PaFS_TYPE_DIR : PaFS_TYPE_FILE;
     inodes[new_ino].size = 0;
     sb->free_inodes--;
     
     // Root dizinine Dir Entry ekle
     unsigned char root_data[512];
     ata_read_sector(root->blocks[0], root_data);
-    struct fafs_dir_entry *entries = (struct fafs_dir_entry *)root_data;
+    struct pafs_dir_entry *entries = (struct pafs_dir_entry *)root_data;
     
-    int max_entries = FAFS_BLOCK_SIZE / sizeof(struct fafs_dir_entry);
-    int entry_count = root->size / sizeof(struct fafs_dir_entry);
+    int max_entries = PaFS_BLOCK_SIZE / sizeof(struct pafs_dir_entry);
+    int entry_count = root->size / sizeof(struct pafs_dir_entry);
     
     if (entry_count < max_entries) {
         entries[entry_count].inode = new_ino;
@@ -141,7 +141,7 @@ int fafs_create(const char *name, int is_dir) {
         }
         entries[entry_count].name[i] = '\0';
         
-        root->size += sizeof(struct fafs_dir_entry);
+        root->size += sizeof(struct pafs_dir_entry);
         
         // Root datayı ve metadatayı diske yaz
         ata_write_sector(root->blocks[0], root_data);
@@ -153,15 +153,15 @@ int fafs_create(const char *name, int is_dir) {
 }
 
 // Dosyaya yaz
-int fafs_write(const char *name, const char *data, int len) {
+int pafs_write(const char *name, const char *data, int len) {
     // 1. Dosyayı bul
-    struct fafs_inode *root = &inodes[sb->root_inode];
+    struct pafs_inode *root = &inodes[sb->root_inode];
     if (root->size == 0) return -1;
     
     unsigned char root_data[512];
     ata_read_sector(root->blocks[0], root_data);
-    struct fafs_dir_entry *entries = (struct fafs_dir_entry *)root_data;
-    int entry_count = root->size / sizeof(struct fafs_dir_entry);
+    struct pafs_dir_entry *entries = (struct pafs_dir_entry *)root_data;
+    int entry_count = root->size / sizeof(struct pafs_dir_entry);
     
     int target_ino = -1;
     for (int i = 0; i < entry_count; i++) {
@@ -171,11 +171,11 @@ int fafs_write(const char *name, const char *data, int len) {
         }
     }
     
-    if (target_ino == -1 || inodes[target_ino].type != FAFS_TYPE_FILE) return -1;
+    if (target_ino == -1 || inodes[target_ino].type != PaFS_TYPE_FILE) return -1;
     
-    struct fafs_inode *file = &inodes[target_ino];
+    struct pafs_inode *file = &inodes[target_ino];
     
-    if (len > FAFS_BLOCK_SIZE) len = FAFS_BLOCK_SIZE;
+    if (len > PaFS_BLOCK_SIZE) len = PaFS_BLOCK_SIZE;
     
     if (file->size == 0) {
         int b = alloc_block();
@@ -198,15 +198,15 @@ int fafs_write(const char *name, const char *data, int len) {
 }
 
 // Dosyadan oku
-int fafs_read(const char *name, char *buffer, int max_len) {
+int pafs_read(const char *name, char *buffer, int max_len) {
     // 1. Dosyayı bul
-    struct fafs_inode *root = &inodes[sb->root_inode];
+    struct pafs_inode *root = &inodes[sb->root_inode];
     if (root->size == 0) return -1;
     
     unsigned char root_data[512];
     ata_read_sector(root->blocks[0], root_data);
-    struct fafs_dir_entry *entries = (struct fafs_dir_entry *)root_data;
-    int entry_count = root->size / sizeof(struct fafs_dir_entry);
+    struct pafs_dir_entry *entries = (struct pafs_dir_entry *)root_data;
+    int entry_count = root->size / sizeof(struct pafs_dir_entry);
     
     int target_ino = -1;
     for (int i = 0; i < entry_count; i++) {
@@ -216,9 +216,9 @@ int fafs_read(const char *name, char *buffer, int max_len) {
         }
     }
     
-    if (target_ino == -1 || inodes[target_ino].type != FAFS_TYPE_FILE) return -1;
+    if (target_ino == -1 || inodes[target_ino].type != PaFS_TYPE_FILE) return -1;
     
-    struct fafs_inode *file = &inodes[target_ino];
+    struct pafs_inode *file = &inodes[target_ino];
     if (file->size == 0) return 0;
     
     int read_len = file->size;
@@ -236,8 +236,8 @@ int fafs_read(const char *name, char *buffer, int max_len) {
 }
 
 // Dizini Listele (ls)
-void fafs_list_dir(void) {
-    struct fafs_inode *root = &inodes[sb->root_inode];
+void pafs_list_dir(void) {
+    struct pafs_inode *root = &inodes[sb->root_inode];
     if (root->size == 0) {
         put_str("Dizin bos.\n");
         return;
@@ -245,13 +245,13 @@ void fafs_list_dir(void) {
     
     unsigned char root_data[512];
     ata_read_sector(root->blocks[0], root_data);
-    struct fafs_dir_entry *entries = (struct fafs_dir_entry *)root_data;
-    int entry_count = root->size / sizeof(struct fafs_dir_entry);
+    struct pafs_dir_entry *entries = (struct pafs_dir_entry *)root_data;
+    int entry_count = root->size / sizeof(struct pafs_dir_entry);
     
-    put_str("FAFS Kok Dizini (/):\n");
+    put_str("PaFS Kok Dizini (/):\n");
     for (int i = 0; i < entry_count; i++) {
-        struct fafs_inode *fnode = &inodes[entries[i].inode];
-        if (fnode->type == FAFS_TYPE_DIR) {
+        struct pafs_inode *fnode = &inodes[entries[i].inode];
+        if (fnode->type == PaFS_TYPE_DIR) {
             put_str("[DIR]  ");
         } else {
             put_str("[FILE] ");

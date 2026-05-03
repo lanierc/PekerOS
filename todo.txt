@@ -29,8 +29,8 @@
 ## 🟢 Faz 2: Depolama ve Dosya Sistemi (Tamamlandı)
 - [x] **ATA/IDE Sürücüsü**
     - [x] LBA 28/48 bit modunda disk okuma/yazma desteği
-- [x] **Dosya Sistemi (FAFS)**
-    - [x] Özel FAFS mimarisinin tasarımı (Superblock, Inode, Block)
+- [x] **Dosya Sistemi (PaFS)**
+    - [x] Özel PaFS mimarisinin tasarımı (Superblock, Inode, Block)
     - [x] RAM tabanlı Sanal Disk implementasyonu
     - [x] Dosya oluşturma, okuma, yazma
 - [x] **Shell Geliştirmeleri**

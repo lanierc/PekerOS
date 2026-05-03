@@ -4,7 +4,7 @@
 #include "pmm.h"
 #include "paging.h"
 #include "kheap.h"
-#include "fafs.h"
+#include "pafs.h"
 #include "task.h"
 #include "tss.h"
 #include "syscall.h"
@@ -214,8 +214,8 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     kfree(test_ptr1);
     kfree(test_ptr2);
 
-    fafs_init();
-    fafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
+    pafs_init();
+    pafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
 
     // 4.4. Multitasking başlat
     init_multitasking();

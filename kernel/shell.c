@@ -2,7 +2,7 @@
 #include "common.h"
 #include "timer.h"
 #include "pmm.h"
-#include "fafs.h"
+#include "pafs.h"
 
 // Metin fonksiyonları (kernel.c içinde tanımladık)
 extern int strcmp(const char *s1, const char *s2);
@@ -62,8 +62,8 @@ void execute_command(char* cmd) {
         put_str("  mem      - Bellek istatistiklerini goster\n");
         put_str("  sleep N  - N milisaniye bekle (ornek: sleep 1000)\n");
         put_str("  echo ... - Mesaji ekrana yaz\n");
-        put_str("  ls       - FAFS kok dizinini listele\n");
-        put_str("  touch f  - FAFS'ta 'f' adinda dosya olustur\n");
+        put_str("  ls       - PaFS kok dizinini listele\n");
+        put_str("  touch f  - PaFS'ta 'f' adinda dosya olustur\n");
         put_str("  write f t- 'f' dosyasina 't' metnini yaz\n");
         put_str("  cat f    - 'f' dosyasini oku\n");
         put_str("  reboot   - Sistemi yeniden baslat\n");
@@ -75,7 +75,7 @@ void execute_command(char* cmd) {
         terminal_col = 0;
     } 
     else if (strcmp(cmd, "version") == 0) {
-        put_str("FerkanOS v0.2 - Shell: fash v0.1\n");
+        put_str("PekerOS v0.2 - Shell: fash v0.1\n");
     }
     else if (strcmp(cmd, "uptime") == 0) {
         unsigned int total_secs = timer_get_seconds();
@@ -138,14 +138,14 @@ void execute_command(char* cmd) {
         put_str("\n");
     }
     else if (strcmp(cmd, "ls") == 0) {
-        fafs_list_dir();
+        pafs_list_dir();
     }
     else if (strncmp(cmd, "touch ", 6) == 0) {
         char *filename = cmd + 6;
         if (strlen(filename) == 0) {
             put_str("Kullanim: touch <dosya_adi>\n");
         } else {
-            int ino = fafs_create(filename, 0);
+            int ino = pafs_create(filename, 0);
             if (ino != -1) {
                 put_str("Dosya olusturuldu: "); put_str(filename); put_str("\n");
             } else {
@@ -166,7 +166,7 @@ void execute_command(char* cmd) {
         if (text == 0 || strlen(filename) == 0) {
             put_str("Kullanim: write <dosya_adi> <metin>\n");
         } else {
-            int written = fafs_write(filename, text, strlen(text));
+            int written = pafs_write(filename, text, strlen(text));
             if (written != -1) {
                 put_str("Yazildi ("); put_int(written); put_str(" byte).\n");
             } else {
@@ -180,7 +180,7 @@ void execute_command(char* cmd) {
             put_str("Kullanim: cat <dosya_adi>\n");
         } else {
             char buf[513];
-            int read_len = fafs_read(filename, buf, 512);
+            int read_len = pafs_read(filename, buf, 512);
             if (read_len != -1) {
                 put_str("--- "); put_str(filename); put_str(" ---\n");
                 put_str(buf);

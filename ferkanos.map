@@ -258,7 +258,7 @@ LOAD idt.o
 LOAD irq.o
 LOAD keyboard.o
 LOAD shell.o
-OUTPUT(ferkanos.bin elf32-i386)
+OUTPUT(pekeros.bin elf32-i386)
 
 .comment        0x00000000       0x1b
  .comment       0x00000000       0x1b kernel.o

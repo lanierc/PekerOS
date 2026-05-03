@@ -23,7 +23,7 @@ PekerOS, x86 mimarisi üzerinde sıfırdan geliştirilen, UNIX benzeri (UNIX-lik
 - **Context Switching:** Assembly seviyesinde hızlı görev değişimi.
 
 ### 📁 Depolama ve Dosya Sistemi
-- **FAFS (PekerOS Advanced File System):** Kendi özel dosya sistemi mimarimiz.
+- **PaFS (PekerOS Advanced File System):** Kendi özel dosya sistemi mimarimiz.
 - **ATA/IDE Sürücüsü:** Gerçek sabit disk okuma ve yazma desteği.
 
 ## 🛠️ Kurulum ve Derleme
@@ -47,7 +47,7 @@ bash scripts/run.sh
 
 ## 🗺️ Yol Haritası
 - [x] **Faz 1:** Bellek Yönetimi (PMM, Paging, Heap)
-- [x] **Faz 2:** Depolama (ATA, FAFS, Shell)
+- [x] **Faz 2:** Depolama (ATA, PaFS, Shell)
 - [x] **Faz 3:** Çoklu Görev & Syscalls
 - [ ] **Faz 4:** Donanım Keşfi (PCI, VESA Grafik Modu)
 - [ ] **Faz 5:** Kullanıcı Uygulamaları (ELF Loader, LibC)

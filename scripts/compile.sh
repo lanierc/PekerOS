@@ -3,7 +3,7 @@
 mkdir -p output
 
 # Eski dosyaları temizle
-rm -f output/*.o output/ferkanos.bin
+rm -f output/*.o output/pekeros.bin
 
 # Assembly
 nasm -f elf32 boot/boot.s -o output/boot.o
@@ -21,14 +21,14 @@ gcc $CFLAGS -c kernel/timer.c -o output/timer.o
 gcc $CFLAGS -c kernel/pmm.c -o output/pmm.o
 gcc $CFLAGS -c kernel/paging.c -o output/paging.o
 gcc $CFLAGS -c kernel/kheap.c -o output/kheap.o
-gcc $CFLAGS -c kernel/fafs.c -o output/fafs.o
+gcc $CFLAGS -c kernel/pafs.c -o output/pafs.o
 gcc $CFLAGS -c kernel/ata.c -o output/ata.o
 gcc $CFLAGS -c kernel/task.c -o output/task.o
 gcc $CFLAGS -c kernel/tss.c -o output/tss.o
 gcc $CFLAGS -c kernel/syscall.c -o output/syscall.o
 
 # Linkleme
-ld -m elf_i386 -T linker.ld -o output/pekeros.bin output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o output/keyboard.o output/shell.o output/timer.o output/pmm.o output/paging.o output/kheap.o output/fafs.o output/ata.o output/task.o output/tss.o output/syscall.o
+ld -m elf_i386 -T linker.ld -o output/pekeros.bin output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o output/keyboard.o output/shell.o output/timer.o output/pmm.o output/paging.o output/kheap.o output/pafs.o output/ata.o output/task.o output/tss.o output/syscall.o
 
 # Sanal Disk Oluştur (10 MB, eğer yoksa)
 if [ ! -f output/disk.img ]; then
