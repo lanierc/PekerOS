@@ -208,7 +208,7 @@ int pafs_write(const char *name, const char *data, int len) {
     return len;
 }
 
-// Dosyadan oku
+// Dosyadan oku (Çoklu blok desteği eklendi)
 int pafs_read(const char *name, char *buffer, int max_len) {
     // 1. Dosyayı bul
     struct pafs_inode *root = &inodes[sb->root_inode];
@@ -232,18 +232,32 @@ int pafs_read(const char *name, char *buffer, int max_len) {
     struct pafs_inode *file = &inodes[target_ino];
     if (file->size == 0) return 0;
     
-    int read_len = file->size;
-    if (read_len > max_len) read_len = max_len;
+    int total_to_read = file->size;
+    if (total_to_read > max_len) total_to_read = max_len;
     
-    unsigned char file_data[512];
-    ata_read_sector(file->blocks[0], file_data);
+    int bytes_read = 0;
+    int block_idx = 0;
+    unsigned char temp_buf[512];
     
-    for (int i = 0; i < read_len; i++) {
-        buffer[i] = file_data[i];
+    while (bytes_read < total_to_read && block_idx < 12) {
+        ata_read_sector(file->blocks[block_idx], temp_buf);
+        
+        int to_copy = total_to_read - bytes_read;
+        if (to_copy > 512) to_copy = 512;
+        
+        for (int i = 0; i < to_copy; i++) {
+            buffer[bytes_read + i] = temp_buf[i];
+        }
+        
+        bytes_read += to_copy;
+        block_idx++;
     }
-    buffer[read_len] = '\0'; 
     
-    return read_len;
+    if (bytes_read < max_len) {
+        buffer[bytes_read] = '\0'; // Metin dosyaları için kolaylık
+    }
+    
+    return bytes_read;
 }
 
 // Dizini Listele (ls)

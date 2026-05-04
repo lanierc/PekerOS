@@ -59,14 +59,14 @@
 - [x] **Grafik Dünyası**
     - [x] VESA VBE (Grafik moduna geçiş - 800x600)
     - [x] Temel çizim fonksiyonları (Piksel, Çizgi, Dikdörtgen)
-- [ ] **Mouse Sürücüsü**
-    - [ ] PS/2 Fare desteği
+- [x] **Mouse Sürücüsü**
+    - [x] PS/2 Fare desteği
 
 ---
 
 ## 🔵 Faz 5: Uygulamalar & ELF Desteği
-- [ ] **ELF Yükleyici (ELF Loader)**
-    - [ ] Diskten .elf dosyalarını yükleyip çalıştırma
+- [x] **ELF Yükleyici (ELF Loader)**
+    - [x] Diskten .elf dosyalarını yükleyip çalıştırma
 - [ ] **Kullanıcı Uygulamaları**
     - [ ] `vi` editörü portu (veya mini-vi)
     - [ ] Basit oyunlar (Tetris, Snake)

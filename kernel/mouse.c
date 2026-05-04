@@ -94,6 +94,7 @@ void mouse_handler(struct registers *r) {
                 unsigned char flags = mouse_byte[0];
                 int x_move = (int)mouse_byte[1];
                 int y_move = (int)mouse_byte[2];
+                m_state.buttons = flags & 0x07; // 0x07 = 00000111 (Sol, Sağ, Orta tık)
 
                 // İşaret bitlerini (Sign Bits) manuel işle
                 if (flags & 0x10) x_move -= 256;

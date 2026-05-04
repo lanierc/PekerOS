@@ -23,4 +23,7 @@ void put_char(char c);
 void put_hex(unsigned int n);
 void put_int(int n);
 
+void *memcpy(void *dest, const void *src, int n);
+void *memset(void *s, int c, int n);
+
 #endif

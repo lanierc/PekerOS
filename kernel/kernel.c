@@ -16,6 +16,7 @@
 unsigned int terminal_row = 0;
 unsigned int terminal_col = 0;
 char* const video_memory = (char*) 0xC00B8000;
+struct multiboot_info* global_mbi = 0;
 
 // Port I/O
 void outb(unsigned short port, unsigned char val) {
@@ -160,6 +161,19 @@ int strcmp(const char *s1, const char *s2) {
     return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 
+void *memcpy(void *dest, const void *src, int n) {
+    char *d = dest;
+    const char *s = src;
+    while (n--) *d++ = *s++;
+    return dest;
+}
+
+void *memset(void *s, int c, int n) {
+    unsigned char *p = s;
+    while (n--) *p++ = (unsigned char)c;
+    return s;
+}
+
 // Test Görevleri
 extern unsigned int stack_top;
 
@@ -179,17 +193,30 @@ void task2_func() {
     }
 }
 
-// Grafik Cizim Gorevi (Task)
 void graphics_task() {
     while(1) {
-        // SADECE imleci guncelle (Piksel kurtarma yontemi ile cok hizli)
         mouse_state_t* ms = mouse_get_state();
+        
+        // Sol tık basılıysa çizim yap
+        if (ms->buttons & MOUSE_LEFT) {
+            vbe_draw_rect(ms->x, ms->y, 5, 5, 0x00E74C3C); // Güzel bir kırmızı
+            vbe_update_rect(ms->x, ms->y, 5, 5);          // Sadece çizilen alanı güncelle
+        }
+        
+        // Sağ tık basılıysa ekranı temizle
+        if (ms->buttons & MOUSE_RIGHT) {
+            vbe_draw_gradient();
+            vbe_update(); // Tüm ekranı güncelle
+        }
+
+        // İmleci her zaman en üstte çiz
         vbe_draw_cursor(ms->x, ms->y);
         
-        // Cok kisa bir bekleme (Islemciyi yormamak icin)
+        // CPU'yu %100 yormamak için kısa bekleme
         for(int i = 0; i < 10000; i++) asm volatile("nop");
     }
 }
+
 
 void user_mode_test() {
     while(1) {
@@ -200,8 +227,25 @@ void user_mode_test() {
     }
 }
 
+void start_graphics(struct multiboot_info* mbi){
+    vbe_init(mbi);
+    vbe_draw_gradient(); // Arka plani bir kez ciz
+    vbe_draw_rect(100, 100, 200, 150, 0x00E67E22); // Statik kutular
+    vbe_draw_rect(400, 300, 100, 100, 0x002ECC71);
+    vbe_update(); // Ekrana yansit
+
+    vbe_write("\n   PEKER OS - Graphics Mode Activated\n", 0x00FFFFFF);
+    vbe_write("   ----------------------------------\n", 0x00F1C40F);
+    vbe_write("   Welcome to the future of PekerOS!\n", 0x00ECf0F1);
+
+    vbe_update(); // HER SEYI EKRANA YANSIT
+    mouse_init();
+    create_task("graphics", graphics_task, 0);
+}
+
 // Kernel Giriş Noktası
 void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
+    global_mbi = mbi;
     // 1. GDT ve IDT'yi kur
     init_gdt();
     init_idt();
@@ -251,19 +295,6 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     // Donanim Kesfi
     pci_init();
 
-    // Grafik Modu Baslatma
-    vbe_init(mbi);
-    vbe_draw_gradient(); // Arka plani bir kez ciz
-    vbe_draw_rect(100, 100, 200, 150, 0x00E67E22); // Statik kutular
-    vbe_draw_rect(400, 300, 100, 100, 0x002ECC71);
-    vbe_update(); // Ekrana yansit
-
-    vbe_write("\n   PEKER OS - Graphics Mode Activated\n", 0x00FFFFFF);
-    vbe_write("   ----------------------------------\n", 0x00F1C40F);
-    vbe_write("   Welcome to the future of PekerOS!\n", 0x00ECf0F1);
-
-    vbe_update(); // HER SEYI EKRANA YANSIT
-
     // 4.4. Multitasking başlat
     init_multitasking();
     
@@ -279,7 +310,6 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     put_str("[OK] Zamanlayici yuklendi (100 Hz).\n");
 
     // 6. Fare sürücüsünü başlat (IRQ12)
-    mouse_init();
 
     // 5. Klavye sürücüsünü başlat (IRQ1 handler'ı kurar ve IRQ1'i açar)
     init_keyboard();
@@ -289,9 +319,8 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     put_str("[OK] fash shell baslatildi.\n\n");
     init_syscalls();
 
-    // Grafik gorevini baslat
-    create_task("graphics", graphics_task, 0);
-
+    // Grafik gorevini baslat (Shell'den manuel baslatilacak)
+    // start_graphics(mbi);
     init_shell();
     // 7. Kesmeleri etkinleştir ve bekleme döngüsüne gir
     asm volatile("sti");

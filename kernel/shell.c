@@ -1,9 +1,21 @@
+#include "idt.h"
 #include "shell.h"
-#include "common.h"
 #include "timer.h"
 #include "pmm.h"
+#include "paging.h"
+#include "kheap.h"
 #include "pafs.h"
+#include "task.h"
+#include "tss.h"
+#include "syscall.h"
 #include "pci.h"
+#include "vbe.h"
+#include "mouse.h"
+#include "multiboot.h"
+
+extern struct multiboot_info* global_mbi;
+extern void start_graphics(struct multiboot_info* mbi);
+extern int elf_load(const char *filename);
 
 // Metin fonksiyonları (kernel.c içinde tanımladık)
 extern int strcmp(const char *s1, const char *s2);
@@ -68,6 +80,8 @@ void execute_command(char* cmd) {
         put_str("  touch f  - PAFS'ta 'f' adinda dosya olustur\n");
         put_str("  write f t- 'f' dosyasina 't' metnini yaz\n");
         put_str("  cat f    - 'f' dosyasini oku\n");
+        put_str("  exec f   - 'f' ELF dosyasini calistir\n");
+        put_str("  vinit    - Görsel modunu başlat\n");
         put_str("  reboot   - Sistemi yeniden baslat\n");
     } 
     else if (strcmp(cmd, "clear") == 0) {
@@ -142,6 +156,10 @@ void execute_command(char* cmd) {
     else if (strcmp(cmd, "echo") == 0) {
         put_str("\n");
     }
+    else if (strcmp(cmd, "vinit") == 0){
+        put_str("Gorsel mod baslatiliyor...\n");
+        start_graphics(global_mbi);
+    }
     else if (strcmp(cmd, "ls") == 0) {
         pafs_list_dir();
     }
@@ -192,6 +210,20 @@ void execute_command(char* cmd) {
                 put_str("\n--------------------\n");
             } else {
                 put_str("Hata: Dosya bulunamadi veya okunamadi.\n");
+            }
+        }
+    }
+    else if (strncmp(cmd, "exec ", 5) == 0) {
+        char *filename = cmd + 5;
+        if (strlen(filename) == 0) {
+            put_str("Kullanim: exec <dosya_adi>\n");
+        } else {
+            int entry = elf_load(filename);
+            if (entry != -1) {
+                put_str("Program baslatiliyor...\n");
+                create_task(filename, (void (*)())entry, 0); // Şimdilik Ring 0'da başlat
+            } else {
+                put_str("Hata: ELF yuklenemedi.\n");
             }
         }
     }
