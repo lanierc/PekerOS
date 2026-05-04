@@ -12,10 +12,11 @@
 #include "vbe.h"
 #include "mouse.h"
 #include "multiboot.h"
+#include "vfs.h"
 
 extern struct multiboot_info* global_mbi;
 extern void start_graphics(struct multiboot_info* mbi);
-extern int elf_load(const char *filename);
+extern int elf_load(vfs_node_t *base, const char *filename);
 
 // Metin fonksiyonları (kernel.c içinde tanımladık)
 extern int strcmp(const char *s1, const char *s2);
@@ -30,6 +31,8 @@ static int buffer_idx = 0;
 static char history_buffer[HISTORY_MAX][BUFFER_SIZE];
 static int history_count = 0;
 static int history_nav_idx = -1;
+static char shell_cwd_path[128] = "/";
+static vfs_node_t *shell_cwd_node = 0;
 
 // Basit bir strncmp
 static int strncmp(const char *s1, const char *s2, int n) {
@@ -51,13 +54,16 @@ static int atoi(const char *s) {
 }
 
 void print_prompt() {
-    put_str("fash> ");
+    put_str("fash ");
+    put_str(shell_cwd_path);
+    put_str("> ");
 }
 
 void init_shell() {
     buffer_idx = 0;
     history_count = 0;
     history_nav_idx = 0;
+    shell_cwd_node = vfs_root;
     for(int i=0; i<BUFFER_SIZE; i++) input_buffer[i] = 0;
     print_prompt();
 }
@@ -76,12 +82,17 @@ void execute_command(char* cmd) {
         put_str("  mem      - Bellek istatistiklerini goster\n");
         put_str("  sleep N  - N milisaniye bekle (ornek: sleep 1000)\n");
         put_str("  echo ... - Mesaji ekrana yaz\n");
-        put_str("  ls       - PAFS kok dizinini listele\n");
-        put_str("  touch f  - PAFS'ta 'f' adinda dosya olustur\n");
+        put_str("  ls [path]- Dizini listele\n");
+        put_str("  cd path  - Dizini degistir (.. desteklenir)\n");
+        put_str("  mkdir p  - 'p' adinda dizin olustur\n");
+        put_str("  rm f     - 'f' dosyasini sil\n");
+        put_str("  rmdir d  - 'd' dizinini sil (bos olmali)\n");
+        put_str("  touch f  - 'f' adinda dosya olustur\n");
         put_str("  write f t- 'f' dosyasina 't' metnini yaz\n");
         put_str("  cat f    - 'f' dosyasini oku\n");
         put_str("  exec f   - 'f' ELF dosyasini calistir\n");
-        put_str("  vinit    - Görsel modunu başlat\n");
+        put_str("  vinit    - Gorsel modunu baslat\n");
+        put_str("  format   - Diski bicimlendir (SIFIRLA)\n");
         put_str("  reboot   - Sistemi yeniden baslat\n");
     } 
     else if (strcmp(cmd, "clear") == 0) {
@@ -159,58 +170,62 @@ void execute_command(char* cmd) {
     else if (strcmp(cmd, "vinit") == 0){
         put_str("Gorsel mod baslatiliyor...\n");
         start_graphics(global_mbi);
+        vbe_set_active(1);
     }
-    else if (strcmp(cmd, "ls") == 0) {
-        pafs_list_dir();
+    else if (strncmp(cmd, "ls", 2) == 0) {
+        char *path = ".";
+        if (strlen(cmd) > 3 && cmd[2] == ' ') path = cmd + 3;
+        
+        vfs_node_t *dir = vfs_get_node_by_path(shell_cwd_node, path);
+
+        if (dir && (dir->flags & VFS_DIRECTORY)) {
+            int i = 0;
+            struct vfs_dirent *node = 0;
+            while ((node = vfs_readdir(dir, i))) {
+                put_str(node->name);
+                put_str("  ");
+                i++;
+            }
+            put_str("\n");
+            if (dir != vfs_root && dir != shell_cwd_node) kfree(dir);
+        } else {
+            put_str("Hata: Dizin bulunamadi.\n");
+        }
+    }
+    else if (strncmp(cmd, "mkdir ", 6) == 0) {
+        char *dirname = cmd + 6;
+        if (pafs_mkdir(shell_cwd_node->inode, dirname) != -1) {
+            put_str("Dizin olusturuldu.\n");
+        } else {
+            put_str("Hata: Dizin olusturulamadi.\n");
+        }
     }
     else if (strncmp(cmd, "touch ", 6) == 0) {
         char *filename = cmd + 6;
         if (strlen(filename) == 0) {
             put_str("Kullanim: touch <dosya_adi>\n");
         } else {
-            int ino = pafs_create(filename, 0);
+            int ino = pafs_create(shell_cwd_node->inode, filename, 0);
             if (ino != -1) {
                 put_str("Dosya olusturuldu: "); put_str(filename); put_str("\n");
             } else {
-                put_str("Hata: Dosya olusturulamadi (Disk dolu olabilir).\n");
-            }
-        }
-    }
-    else if (strncmp(cmd, "write ", 6) == 0) {
-        char *filename = cmd + 6;
-        char *text = 0;
-        for (int i = 0; filename[i] != '\0'; i++) {
-            if (filename[i] == ' ') {
-                filename[i] = '\0';
-                text = &filename[i+1];
-                break;
-            }
-        }
-        if (text == 0 || strlen(filename) == 0) {
-            put_str("Kullanim: write <dosya_adi> <metin>\n");
-        } else {
-            int written = pafs_write(filename, text, strlen(text));
-            if (written != -1) {
-                put_str("Yazildi ("); put_int(written); put_str(" byte).\n");
-            } else {
-                put_str("Hata: Yazma basarisiz (Dosya bulunamadi veya disk dolu).\n");
+                put_str("Hata: Dosya olusturulamadi.\n");
             }
         }
     }
     else if (strncmp(cmd, "cat ", 4) == 0) {
-        char *filename = cmd + 4;
-        if (strlen(filename) == 0) {
-            put_str("Kullanim: cat <dosya_adi>\n");
+        char *path = cmd + 4;
+        vfs_node_t *node = vfs_get_node_by_path(shell_cwd_node, path);
+
+        if (node) {
+            char buf[1024];
+            int read_len = vfs_read(node, 0, 1023, (unsigned char *)buf);
+            buf[read_len] = '\0';
+            put_str(buf);
+            put_str("\n");
+            if (node != vfs_root && node != shell_cwd_node) kfree(node);
         } else {
-            char buf[513];
-            int read_len = pafs_read(filename, buf, 512);
-            if (read_len != -1) {
-                put_str("--- "); put_str(filename); put_str(" ---\n");
-                put_str(buf);
-                put_str("\n--------------------\n");
-            } else {
-                put_str("Hata: Dosya bulunamadi veya okunamadi.\n");
-            }
+            put_str("Hata: Dosya bulunamadi.\n");
         }
     }
     else if (strncmp(cmd, "exec ", 5) == 0) {
@@ -218,19 +233,89 @@ void execute_command(char* cmd) {
         if (strlen(filename) == 0) {
             put_str("Kullanim: exec <dosya_adi>\n");
         } else {
-            int entry = elf_load(filename);
+            int entry = elf_load(shell_cwd_node, filename);
             if (entry != -1) {
                 put_str("Program baslatiliyor...\n");
-                create_task(filename, (void (*)())entry, 0); // Şimdilik Ring 0'da başlat
+                create_task(filename, (void (*)())entry, 0);
             } else {
                 put_str("Hata: ELF yuklenemedi.\n");
             }
+        }
+    }
+    else if (strncmp(cmd, "cd ", 3) == 0) {
+        char *path = cmd + 3;
+        if (strcmp(path, "..") == 0) {
+            // Bir üst dizine çık (Basit path manipülasyonu)
+            if (strcmp(shell_cwd_path, "/") != 0) {
+                int len = strlen(shell_cwd_path);
+                int i = len - 1;
+                if (shell_cwd_path[i] == '/') i--;
+                while (i >= 0 && shell_cwd_path[i] != '/') i--;
+                if (i < 0) i = 0;
+                shell_cwd_path[i + 1] = '\0';
+                if (i == 0) shell_cwd_path[1] = '\0'; // "/" durumunu koru
+                
+                vfs_node_t *new_node = vfs_get_node_by_path(vfs_root, shell_cwd_path);
+                if (new_node) {
+                    if (shell_cwd_node != vfs_root) kfree(shell_cwd_node);
+                    shell_cwd_node = new_node;
+                }
+            }
+        } else {
+            vfs_node_t *node = vfs_get_node_by_path(shell_cwd_node, path);
+            if (node && (node->flags & VFS_DIRECTORY)) {
+                if (shell_cwd_node != vfs_root) kfree(shell_cwd_node);
+                shell_cwd_node = node;
+                
+                // Path guncelle
+                if (path[0] == '/') {
+                    int i = 0;
+                    while(path[i]) { shell_cwd_path[i] = path[i]; i++; }
+                    shell_cwd_path[i] = '\0';
+                } else {
+                    int len = strlen(shell_cwd_path);
+                    if (shell_cwd_path[len-1] != '/') {
+                        shell_cwd_path[len] = '/';
+                        len++;
+                    }
+                    int i = 0;
+                    while(path[i]) { shell_cwd_path[len+i] = path[i]; i++; }
+                    shell_cwd_path[len+i] = '\0';
+                }
+            } else {
+                put_str("Hata: Dizin bulunamadi.\n");
+                if (node) kfree(node);
+            }
+        }
+    }
+    else if (strncmp(cmd, "rm ", 3) == 0) {
+        char *filename = cmd + 3;
+        if (pafs_delete(shell_cwd_node->inode, filename) == 0) {
+            put_str("Dosya silindi.\n");
+        } else {
+            put_str("Hata: Dosya silinemedi.\n");
+        }
+    }
+    else if (strncmp(cmd, "rmdir ", 6) == 0) {
+        char *dirname = cmd + 6;
+        int res = pafs_delete(shell_cwd_node->inode, dirname);
+        if (res == 0) {
+            put_str("Dizin silindi.\n");
+        } else if (res == -2) {
+            put_str("Hata: Dizin bos degil.\n");
+        } else {
+            put_str("Hata: Dizin silinemedi.\n");
         }
     }
     else if (strcmp(cmd, "reboot") == 0) {
         put_str("Sistem yeniden baslatiliyor...\n");
         // Klavye kontrolcüsü üzerinden reset (8042 port 0x64)
         outb(0x64, 0xFE);
+    }
+    else if (strcmp(cmd, "format") == 0) {
+        put_str("PAFS bicimlendiriliyor...\n");
+        pafs_format();
+        put_str("Disk temizlendi. Lutfen 'reboot' yaparak sistemi yenileyin.\n");
     }
     else {
         put_str("Hata: Bilinmeyen komut '");
@@ -240,6 +325,8 @@ void execute_command(char* cmd) {
 }
 
 void shell_input(char c) {
+    if (vbe_is_active()) return;
+    
     if (c == '\n') {
         put_char('\n');
         input_buffer[buffer_idx] = '\0';

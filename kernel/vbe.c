@@ -183,3 +183,13 @@ void vbe_draw_cursor(int x, int y) {
     last_cursor_x = x;
     last_cursor_y = y;
 }
+
+static int vbe_active = 0;
+
+int vbe_is_active() {
+    return vbe_active;
+}
+
+void vbe_set_active(int active) {
+    vbe_active = active;
+}

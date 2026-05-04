@@ -24,4 +24,7 @@ void vbe_draw_cursor(int x, int y);
 void vbe_update();
 void vbe_update_rect(int x, int y, int w, int h);
 
+int vbe_is_active();
+void vbe_set_active(int active);
+
 #endif

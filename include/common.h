@@ -26,4 +26,7 @@ void put_int(int n);
 void *memcpy(void *dest, const void *src, int n);
 void *memset(void *s, int c, int n);
 
+// Kernel Panic
+void panic(const char *message, struct registers *regs);
+
 #endif

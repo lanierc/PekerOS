@@ -28,7 +28,8 @@ struct pafs_superblock {
 struct pafs_inode {
     unsigned int type;           // 1: Dosya, 2: Klasör
     unsigned int size;           // Dosya boyutu
-    unsigned int blocks[12];     // Veri blok numaraları (Maks 12 * 512 = 6KB dosya boyutu, basitlik için)
+    unsigned int blocks[12];     // Veri blok numaraları (Maks 12 * 512 = 6KB dosya boyutu)
+    unsigned int padding[2];     // 64 byte hizalaması için (56 + 8)
 };
 
 // Klasör Girdisi (Directory Entry)
@@ -40,7 +41,9 @@ struct pafs_dir_entry {
 // PAFS Fonksiyonları
 void pafs_init(void);
 void pafs_format(void);
-int pafs_create(const char *name, int is_dir);
+int pafs_create(int parent_ino, const char *name, int is_dir);
+int pafs_mkdir(int parent_ino, const char *name);
+int pafs_delete(int parent_ino, const char *name);
 int pafs_write(const char *name, const char *data, int len);
 int pafs_read(const char *name, char *buffer, int max_len);
 void pafs_list_dir(void);

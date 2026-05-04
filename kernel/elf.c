@@ -1,19 +1,27 @@
 #include "elf.h"
-#include "pafs.h"
+#include "vfs.h"
 #include "kheap.h"
 #include "paging.h"
 #include "pmm.h"
 
-int elf_load(const char *filename) {
-    // 1. Dosya boyutunu öğrenmek için küçük bir tamponla oku (veya inode'dan bak)
-    // Şimdilik 6KB olan PAFS limitine güvenip tam okuma yapıyoruz.
-    char *buffer = (char *)kmalloc(8192); // Max 8KB buffer
-    int read_len = pafs_read(filename, buffer, 8192);
+int elf_load(vfs_node_t *base, const char *filename) {
+    vfs_node_t *node = vfs_get_node_by_path(base, filename);
     
-    if (read_len <= 0) {
-        put_str("[ELF] Dosya bulunamadi veya bos: ");
+    if (!node) {
+        put_str("[ELF] Dosya bulunamadi: ");
         put_str(filename);
         put_str("\n");
+        return -1;
+    }
+
+    char *buffer = (char *)kmalloc(node->length);
+    int read_len = vfs_read(node, 0, node->length, (unsigned char *)buffer);
+    
+    if (read_len <= 0) {
+        put_str("[ELF] Dosya okunamadi: ");
+        put_str(filename);
+        put_str("\n");
+        kfree(node);
         kfree(buffer);
         return -1;
     }
@@ -61,6 +69,7 @@ int elf_load(const char *filename) {
 
     unsigned int entry = header->e_entry;
     kfree(buffer);
+    kfree(node);
     
     put_str("[ELF] Yuklendi: ");
     put_str(filename);

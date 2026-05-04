@@ -39,19 +39,16 @@ void isr_handler(struct registers *regs) {
     if (regs->int_no == 14) {
         unsigned int cr2;
         asm volatile("mov %%cr2, %0" : "=r" (cr2));
-        put_str("\n!!! PAGE FAULT !!! Adres: ");
-        put_hex(cr2);
+        panic("PAGE FAULT", regs);
+    } else {
+        // Basit bir mesaj oluşturma (sprintf olmadığı için kısıtlı)
+        if (regs->int_no == 0) panic("DIVISION BY ZERO", regs);
+        else if (regs->int_no == 13) panic("GENERAL PROTECTION FAULT", regs);
+        else if (regs->int_no == 8) panic("DOUBLE FAULT", regs);
+        else panic("BILINMEYEN CPU ISTISNASI", regs);
     }
 
-    put_str("\n!!! CPU Istisnasi: int_no=");
-    put_int(regs->int_no);
-    put_str(" err_code=");
-    put_hex(regs->err_code);
-    put_str(" eip=");
-    put_hex(regs->eip);
-    put_str("\nSistem durduruldu.\n");
-
-    // Kesmeleri kapat ve dur (triple fault'a yol açmaz)
+    // Buraya asla ulaşılmamalı
     asm volatile("cli");
     for(;;) asm volatile("hlt");
 }

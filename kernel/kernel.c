@@ -11,6 +11,9 @@
 #include "pci.h"
 #include "vbe.h"
 #include "mouse.h"
+#include "vfs.h"
+
+extern vfs_node_t *pafs_get_vfs_root();
 
 // Global değişkenler
 unsigned int terminal_row = 0;
@@ -291,6 +294,9 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
 
     pafs_init();
     pafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
+
+    // VFS Başlat
+    vfs_root = pafs_get_vfs_root();
 
     // Donanim Kesfi
     pci_init();

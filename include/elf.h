@@ -56,6 +56,7 @@ typedef struct {
 #define PF_W 0x2
 #define PF_R 0x4
 
-int elf_load(const char *filename);
+#include "vfs.h"
+int elf_load(vfs_node_t *base, const char *filename);
 
 #endif
