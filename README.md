@@ -1,96 +1,96 @@
-# 🚀 PekerOS (FerkanOS)
+# PekerOS (FerkanOS)
 
-PekerOS, x86 (32-bit) mimarisi için sıfırdan (from scratch) geliştirilmiş, tamamen bağımsız ve modern özelliklerle donatılmış hobi amaçlı bir işletim sistemidir. Multiboot uyumlu bir bootloader ile başlayan bu yolculuk; sanal bellek yönetiminden (Paging), grafik kullanıcı arayüzüne (VBE), kullanıcı alanı (Userland) ELF uygulamalarından, donanımsal ağ sürücülerine (RTL8139) kadar uzanan devasa bir ekosisteme dönüşmüştür.
-
----
-
-## 🌟 Öne Çıkan Özellikler
-
-- **Gelişmiş Bellek Yönetimi**: 4KB sayfalama (Paging), PMM (Physical Memory Manager) ve kheap (Kernel Heap) ile dinamik bellek yönetimi (kmalloc/kfree).
-- **Kendi Dosya Sistemimiz (PAFS)**: İşletim sistemine özel olarak tasarlanmış *Peker Advanced File System (PAFS)*. VFS (Virtual File System) katmanı üzerinden çalışır.
-- **Kullanıcı Alanı (Userland) ve ELF Yükleyici**: Diskten `ELF32` formatındaki binary dosyaları belleğe alıp ayrıştırarak Ring 3 (User Mode) seviyesinde çalıştırabilen yerleşik bir ELF Loader.
-- **POSIX Sistem Çağrıları (LibC Uyumluluğu)**: Uygulamalar standart C fonksiyonlarını kullanabilsin diye tasarlanmış sistem çağrıları (Syscalls). Desteklenen çağrılar: `SYS_OPEN`, `SYS_READ`, `SYS_WRITE_FD`, `SYS_CLOSE`, `SYS_SBRK`, `SYS_CLEAR`.
-- **Dahili Metin Editörü (Mini-Vi)**: Diskten bir dosya açıp, içerisinde değişiklik yapıp kalıcı olarak kaydedebileceğiniz Nano/Vi benzeri yerleşik metin editörü (Pilo).
-- **Ağ Yığını (Network Stack)**: Gerçek bir PCI donanımı olan **RTL8139** ethernet kartı sürücüsü. Ethernet Frame, ARP Request/Reply ve IPv4 ICMP Ping Echo Reply protokollerini tamamen anlayan ve cevap verebilen bir ağ katmanı.
-- **Grafik ve Multimedya**: VBE (VESA BIOS Extensions) üzerinden 800x600 32-bit çözünürlük desteği. Çift tamponlama (Double Buffering) ve donanım kesmeli PS/2 fare desteği.
+PekerOS is a custom-built, 32-bit x86 operating system developed entirely from scratch. Starting from a Multiboot-compliant bootloader, it has evolved into a comprehensive system featuring virtual memory management, a graphical user interface, userland ELF application support, and a hardware-level networking stack.
 
 ---
 
-## 🛠️ Mimari ve Gelişim Aşamaları (Fazlar)
+## Key Features
 
-PekerOS, yapılandırılmış fazlar halinde geliştirilmiştir:
-
-### 🟢 Faz 1-3: Çekirdek (Kernel) Temelleri
-- GDT, IDT ve IRQ/ISR (Donanım kesmeleri) kurulumu.
-- PIC (Programmable Interrupt Controller) yeniden haritalandırması.
-- PIT (Zamanlayıcı) ve Klavye donanım sürücüleri.
-- `fash` (Ferkan Advanced Shell) isminde dahili bir komut satırı arayüzü.
-
-### 🔵 Faz 4: Grafik Dünyası (GUI)
-- Legacy VGA Metin Modundan, VESA Grafik Moduna geçiş.
-- PCI Veri Yolu (Bus) tarayıcısı ile donanımların keşfedilmesi.
-- PS/2 Fare (Mouse) Sürücüsü entegrasyonu (IRQ12) ve yumuşak imleç (Cursor) oluşturulması.
-
-### 🟣 Faz 5: Userland ve Uygulamalar
-- Kullanıcıların kendi C kodlarını derleyip işletim sistemine yükleyebilmesi sağlandı.
-- **Syscall API:** `int 0x80` üzerinden çekirdek-kullanıcı haberleşmesi.
-- `sbrk` kullanılarak uygulamaların kendi içinde `malloc()` yapabilmesi için dinamik bellek büyüme yeteneği.
-- `vi` editörü ve çeşitli test oyunları (Guess vb.) geliştirildi.
-
-### 🟠 Faz 6: Ağ Dünyası (Networking)
-- **PCI üzerinden RTL8139 Keşfi:** Sistem boot anında ağ kartını bulup donanımı aktifleştirir.
-- **DMA Tabanlı RX/TX Buffer:** Ağ paketleri işlemciyi yormadan doğrudan DMA üzerinden tahsis edilen fiziksel çerçevelere (frames) aktarılır.
-- **ARP & ICMP:** Ağdaki bilgisayarlardan gelen "Benimle konuşur musun?" (ARP) ve "Orada mısın?" (Ping) isteklerini algılayıp, MAC ve IP adreslerini kendi kendine doldurarak **Echo Reply** gönderen muazzam bir alt sistem.
+- **Advanced Memory Management:** Implements 4KB Paging, a Physical Memory Manager (PMM), and a dynamic kernel heap (`kmalloc`/`kfree`).
+- **Custom File System (PAFS):** Features the Peker Advanced File System (PAFS), working seamlessly through a Virtual File System (VFS) abstraction layer.
+- **Userland & ELF Loader:** Capable of parsing and loading standard `ELF32` binaries from disk and executing them in Ring 3 (User Mode).
+- **POSIX System Calls:** Provides a LibC-compatible syscall interface (`int 0x80`) supporting essential operations such as `SYS_OPEN`, `SYS_READ`, `SYS_WRITE_FD`, `SYS_CLOSE`, and `SYS_SBRK`.
+- **Built-in Text Editor:** Includes a native, vi-like text editor (Mini-Vi) capable of reading, editing, and saving files directly to the disk.
+- **Networking Stack:** Integrates a robust RTL8139 ethernet driver with a custom network protocol stack that parses Ethernet frames and responds to ARP Requests and ICMP Echo Requests (Ping).
+- **Graphics Engine:** Supports VBE (VESA BIOS Extensions) for 800x600 32-bit graphical modes, featuring double-buffering and an interrupt-driven PS/2 mouse driver.
 
 ---
 
-## 📂 Proje Dizin Yapısı
+## Architecture & Milestones
 
-| Dizin | Açıklama |
+The development of PekerOS is structured into focused phases:
+
+### Phase 1-3: Core Foundations
+- Implementation of the Global Descriptor Table (GDT), Interrupt Descriptor Table (IDT), and ISR/IRQ handling.
+- Programmable Interrupt Controller (PIC) remapping.
+- Hardware drivers for the Programmable Interval Timer (PIT) and PS/2 Keyboard.
+- Development of the internal kernel shell, `fash` (Ferkan Advanced Shell).
+
+### Phase 4: Graphical User Interface
+- Transition from legacy VGA Text Mode to high-resolution VESA graphics.
+- Implementation of a PCI Bus enumerator to discover hardware components.
+- Development of an asynchronous, interrupt-driven PS/2 mouse driver with smooth cursor rendering.
+
+### Phase 5: Userland & Applications
+- Established the Ring 3 User Mode environment.
+- Implemented the Syscall API for kernel-userland communication.
+- Enabled dynamic memory allocation (`sbrk`) for userland applications.
+- Ported the `vi` editor and developed user-space utilities.
+
+### Phase 6: Networking
+- Automatic PCI discovery and initialization of the RTL8139 Network Interface Card.
+- DMA-based RX/TX buffer allocation for zero-copy packet handling.
+- Implementation of ARP and IPv4 ICMP protocols, allowing the OS to reply to network discovery and Ping requests.
+
+---
+
+## Directory Structure
+
+| Directory | Description |
 |---|---|
-| `boot/` | Assembly (NASM) ile yazılmış Multiboot uyumlu başlangıç kodları |
-| `kernel/` | İşletim sisteminin ana C kodları (GDT, Kesmeler, Paging, Aygıt Sürücüleri, VFS, Network) |
-| `include/` | Kernel ve modüller için yazılmış tüm `.h` (header) dosyaları |
-| `userland/` | İşletim sistemi üzerinde çalışan, diskten ELF olarak yüklenen kullanıcı (Ring 3) uygulamaları (Örn: `vi.c`, `hello.c`) |
-| `scripts/` | QEMU'yu başlatmak, diski formatlamak, PAFS'a uygulama enjekte etmek için kullanılan yardımcı bash ve python araçları |
-| `output/` | Derleme sonrası oluşan `.bin` ve `disk.img` (İşletim sistemi kalıbı) |
+| `boot/` | Assembly (NASM) code for the Multiboot-compliant bootloader |
+| `kernel/` | Core C source code (Memory, Interrupts, Drivers, VFS, Network) |
+| `include/` | Header files for kernel subsystems and drivers |
+| `userland/` | Ring 3 user applications compiled as ELF binaries (e.g., `vi.c`, `hello.c`) |
+| `scripts/` | Bash and Python utility scripts for building, disk formatting, and QEMU execution |
+| `output/` | Compiled `.bin` kernel and the final bootable `disk.img` |
 
 ---
 
-## 🚀 Kurulum ve Çalıştırma
+## Build and Run Instructions
 
-PekerOS'u kendi bilgisayarınızda derleyip test etmek oldukça kolaydır. 
+Building and testing PekerOS requires a standard cross-compilation environment.
 
-### Gereksinimler
-- GCC (i686-elf veya standart gcc `m32` desteğiyle)
+### Prerequisites
+- GCC (i686-elf or standard gcc with `m32` support)
 - NASM
 - QEMU (`qemu-system-i386`)
-- Python 3 (Disk enjeksiyon araçları için)
+- Python 3 (for PAFS disk injection tools)
 
-### Derleme (Build)
+### Building the OS
 
-Kernel'i ve sürücüleri derlemek için:
+To compile the kernel and hardware drivers:
 ```bash
 bash scripts/compile.sh
 ```
 
-Kullanıcı uygulamalarını (Vi editörü vb.) derleyip diske enjekte etmek için:
+To compile userland applications and inject them into the disk image:
 ```bash
 cd userland
 bash compile_user.sh
 ```
 
-### Başlatma (Run)
+### Running the OS
 
-İşletim sistemini QEMU sanal makinesi üzerinde, RTL8139 Ağ Kartı desteğiyle çalıştırmak için:
+To launch the operating system in QEMU with network support enabled:
 ```bash
 bash scripts/run.sh
 ```
-*Sistem açıldığında, `fash` terminaline `exec vi` yazarak dahili editörü test edebilir veya host makinenizin ağ izleyicileriyle işletim sisteminizin ARP yanıtlarını gözlemleyebilirsiniz.*
+*Once booted, you can type `exec vi` in the `fash` terminal to test the text editor, or monitor the kernel logs as the OS automatically responds to ARP requests on the virtual network.*
 
 ---
 
-## 👨‍💻 Geliştirici
+## Developer
 **Muhammed Yasir PEKER**
 
-*PekerOS: Düşük seviye mühendisliğe ve işletim sistemi tasarımına duyulan tutkunun bir eseridir.* 💻✨
+*PekerOS: Built with a passion for low-level engineering and operating system design.*
