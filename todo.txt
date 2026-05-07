@@ -67,8 +67,52 @@
 ## 🔵 Faz 5: Uygulamalar & ELF Desteği
 - [x] **ELF Yükleyici (ELF Loader)**
     - [x] Diskten .elf dosyalarını yükleyip çalıştırma
-- [ ] **Kullanıcı Uygulamaları**
-    - [ ] `vi` editörü portu (veya mini-vi)
-    - [ ] Basit oyunlar (Tetris, Snake)
-- [ ] **LibC Portu**
-    - [ ] Newlib veya musl portu hazırlığı
+- [x] **Kullanıcı Uygulamaları**
+    - [x] `vi` editörü portu (veya mini-vi)
+    - [x] Basit oyunlar (Tetris, Snake, Guess)
+- [x] **LibC Portu**
+    - [x] Newlib veya musl portu hazırlığı (Sistem Çağrıları ve Stublar eklendi)
+
+---
+
+## 🟣 Faz 6: Ağ Yığını (Networking)
+- [ ] **Ağ Sürücüleri (NIC)**
+    - [ ] RTL8139 veya E1000 ağ kartı sürücüsü
+- [ ] **Protokol Yığını (Network Stack)**
+    - [ ] Ethernet Frame ve ARP implementasyonu
+    - [ ] IPv4, ICMP (Ping desteği)
+    - [ ] UDP ve TCP protokolleri
+- [ ] **Soket API**
+    - [ ] Kullanıcı programları için temel Socket API (BSD Sockets)
+
+---
+
+## 🟠 Faz 7: İleri Düzey VFS ve Dosya Sistemleri
+- [ ] **Gelişmiş VFS (Virtual File System)**
+    - [ ] Mount noktaları desteği (Mount points)
+    - [ ] Sembolik ve sert bağlantılar (Symlinks & Hardlinks)
+- [ ] **Standart Dosya Sistemleri**
+    - [ ] Ext2 dosya sistemi okuma/yazma desteği
+    - [ ] FAT32 desteği (USB vb. için)
+
+---
+
+## 🔴 Faz 8: Gelişmiş GUI ve Masaüstü Ortamı
+- [ ] **Pencere Yöneticisi (Window Manager)**
+    - [ ] Çoklu pencere (Compositing/Z-Order) desteği
+    - [ ] Olay güdümlü (Event-driven) mesajlaşma sistemi
+- [ ] **UI Kit**
+    - [ ] Butonlar, Metin kutuları, Menüler
+    - [ ] Font renderlama (TrueType/FreeType portu)
+
+---
+
+## 🟤 Faz 9: Çevresel Birimler ve Diğerleri
+- [ ] **USB Desteği**
+    - [ ] UHCI/OHCI/EHCI/xHCI kontrolcü sürücüleri
+    - [ ] USB HID (Klavye, Mouse) ve Mass Storage (USB Bellek)
+- [ ] **Ses (Audio)**
+    - [ ] AC97 veya Intel HDA Ses kartı sürücüsü
+    - [ ] Temel ses çalma API'si
+- [ ] **SMP (Symmetric Multiprocessing)**
+    - [ ] Çoklu çekirdek desteği (APIC ve Spinlock mekanizmaları)

@@ -7,6 +7,7 @@
 
 void init_pmm(struct multiboot_info *mbi);
 unsigned int alloc_frame(void);
+unsigned int alloc_contiguous_frames(int count);
 void free_frame(unsigned int addr);
 
 // Bellek istatistikleri

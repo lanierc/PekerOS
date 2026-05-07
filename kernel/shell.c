@@ -33,6 +33,7 @@ static int history_count = 0;
 static int history_nav_idx = -1;
 static char shell_cwd_path[128] = "/";
 static vfs_node_t *shell_cwd_node = 0;
+int shell_active = 1;
 
 // Basit bir strncmp
 static int strncmp(const char *s1, const char *s2, int n) {
@@ -170,7 +171,6 @@ void execute_command(char* cmd) {
     else if (strcmp(cmd, "vinit") == 0){
         put_str("Gorsel mod baslatiliyor...\n");
         start_graphics(global_mbi);
-        vbe_set_active(1);
     }
     else if (strncmp(cmd, "ls", 2) == 0) {
         char *path = ".";
@@ -187,7 +187,7 @@ void execute_command(char* cmd) {
                 i++;
             }
             put_str("\n");
-            if (dir != vfs_root && dir != shell_cwd_node) kfree(dir);
+            if (dir != vfs_root && dir != shell_cwd_node) vfs_close(dir);
         } else {
             put_str("Hata: Dizin bulunamadi.\n");
         }
@@ -223,7 +223,7 @@ void execute_command(char* cmd) {
             buf[read_len] = '\0';
             put_str(buf);
             put_str("\n");
-            if (node != vfs_root && node != shell_cwd_node) kfree(node);
+            if (node != vfs_root && node != shell_cwd_node) vfs_close(node);
         } else {
             put_str("Hata: Dosya bulunamadi.\n");
         }
@@ -236,6 +236,7 @@ void execute_command(char* cmd) {
             int entry = elf_load(shell_cwd_node, filename);
             if (entry != -1) {
                 put_str("Program baslatiliyor...\n");
+                shell_active = 0;
                 create_task(filename, (void (*)())entry, 0);
             } else {
                 put_str("Hata: ELF yuklenemedi.\n");
@@ -257,14 +258,14 @@ void execute_command(char* cmd) {
                 
                 vfs_node_t *new_node = vfs_get_node_by_path(vfs_root, shell_cwd_path);
                 if (new_node) {
-                    if (shell_cwd_node != vfs_root) kfree(shell_cwd_node);
+                    if (shell_cwd_node != vfs_root) vfs_close(shell_cwd_node);
                     shell_cwd_node = new_node;
                 }
             }
         } else {
             vfs_node_t *node = vfs_get_node_by_path(shell_cwd_node, path);
             if (node && (node->flags & VFS_DIRECTORY)) {
-                if (shell_cwd_node != vfs_root) kfree(shell_cwd_node);
+                if (shell_cwd_node != vfs_root) vfs_close(shell_cwd_node);
                 shell_cwd_node = node;
                 
                 // Path guncelle
@@ -284,7 +285,7 @@ void execute_command(char* cmd) {
                 }
             } else {
                 put_str("Hata: Dizin bulunamadi.\n");
-                if (node) kfree(node);
+                if (node) vfs_close(node);
             }
         }
     }
@@ -353,7 +354,9 @@ void shell_input(char c) {
         for(int i=0; i<BUFFER_SIZE; i++) input_buffer[i] = 0;
         history_nav_idx = history_count;
         
-        print_prompt();
+        if (shell_active) {
+            print_prompt();
+        }
     } 
     else if (c == '\x11') { // Yukarı Ok (Önceki komut)
         if (history_count > 0 && history_nav_idx > 0) {

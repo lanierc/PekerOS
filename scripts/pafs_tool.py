@@ -21,12 +21,12 @@ def add_file_to_pafs(disk_path, file_path, name_in_pafs):
 
         # 2. Inode'ları oku
         disk.seek(LBA_INODES_START * BLOCK_SIZE)
-        inodes_data = bytearray(disk.read(128 * 56)) # 128 inode * 56 byte
+        inodes_data = bytearray(disk.read(128 * 64)) # 128 inode * 64 byte
 
         # 3. Boş bir inode bul
         target_ino = -1
         for i in range(128):
-            itype = struct.unpack_from("<I", inodes_data, i * 56)[0]
+            itype = struct.unpack_from("<I", inodes_data, i * 64)[0]
             if itype == 0: # PAFS_TYPE_FREE
                 target_ino = i
                 break
@@ -70,10 +70,11 @@ def add_file_to_pafs(disk_path, file_path, name_in_pafs):
             disk.write(chunk.ljust(BLOCK_SIZE, b'\x00'))
 
         # 6. Inode'u güncelle
-        # struct pafs_inode: type, size, blocks[12]
+        # struct pafs_inode: type, size, blocks[12], padding[2]
         inode_struct = struct.pack("<II", 1, len(data)) # type=1 (FILE)
         block_list = struct.pack("<12I", *(assigned_blocks + [0]*(12-len(assigned_blocks))))
-        inodes_data[target_ino * 56 : (target_ino + 1) * 56] = inode_struct + block_list
+        padding = struct.pack("<II", 0, 0)
+        inodes_data[target_ino * 64 : (target_ino + 1) * 64] = inode_struct + block_list + padding
 
         # 7. Root dizinine (Inode 0) ekle
         root_itype, root_size = struct.unpack_from("<II", inodes_data, 0)
@@ -82,6 +83,15 @@ def add_file_to_pafs(disk_path, file_path, name_in_pafs):
         # Root'un ilk bloğunu oku (Dir entries)
         disk.seek(root_blocks[0] * BLOCK_SIZE)
         dir_data = bytearray(disk.read(BLOCK_SIZE))
+        
+        # İlk olarak dosya zaten var mı diye kontrol edelim
+        for i in range(BLOCK_SIZE // 32):
+            ino_val = struct.unpack_from("<I", dir_data, i * 32)[0]
+            if ino_val != 0:
+                existing_name = struct.unpack_from("<28s", dir_data, i * 32 + 4)[0].split(b'\x00')[0].decode('ascii')
+                if existing_name == name_in_pafs:
+                    print(f"Hata: '{name_in_pafs}' adinda bir dosya zaten var!")
+                    return
         
         # Boş bir giriş bul
         entry_found = False

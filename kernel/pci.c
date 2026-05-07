@@ -19,6 +19,26 @@ unsigned short pci_config_read_word(unsigned char bus, unsigned char slot, unsig
     return tmp;
 }
 
+unsigned int pci_config_read_dword(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset) {
+    unsigned int address = (unsigned int)((bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC) | 0x80000000);
+    outl(PCI_CONFIG_ADDRESS, address);
+    return inl(PCI_CONFIG_DATA);
+}
+
+void pci_config_write_word(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset, unsigned short value) {
+    unsigned int address = (unsigned int)((bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC) | 0x80000000);
+    outl(PCI_CONFIG_ADDRESS, address);
+    unsigned int old = inl(PCI_CONFIG_DATA);
+    old = (old & ~(0xFFFF << ((offset & 2) * 8))) | (value << ((offset & 2) * 8));
+    outl(PCI_CONFIG_DATA, old);
+}
+
+void pci_config_write_dword(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset, unsigned int value) {
+    unsigned int address = (unsigned int)((bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC) | 0x80000000);
+    outl(PCI_CONFIG_ADDRESS, address);
+    outl(PCI_CONFIG_DATA, value);
+}
+
 // PCI Class kodlarını metne dönüştür
 const char* pci_class_to_str(unsigned char class_code) {
     switch (class_code) {
@@ -105,6 +125,27 @@ void pci_init() {
                 put_str(" (");
                 put_str(pci_subclass_to_str(class_code, subclass_code));
                 put_str(")\n");
+
+                // RTL8139 kontrolü (Vendor: 0x10EC, Device: 0x8139)
+                if (vendor == 0x10EC && device == 0x8139) {
+                    put_str("\n[RTL8139] Cihaz PCI uzerinde bulundu!\n");
+                    
+                    // Bus Mastering (Bit 2 of Command Register at offset 0x04)
+                    unsigned short command = pci_config_read_word(bus, dev, func, 0x04);
+                    command |= (1 << 2);
+                    pci_config_write_word(bus, dev, func, 0x04, command);
+                    
+                    // I/O Port Base (BAR0, offset 0x10)
+                    unsigned int bar0 = pci_config_read_dword(bus, dev, func, 0x10);
+                    unsigned int io_base = bar0 & ~3; // I/O adresi için son iki biti temizle
+                    
+                    // IRQ Line (offset 0x3C, lowest byte)
+                    unsigned int irq = pci_config_read_dword(bus, dev, func, 0x3C) & 0xFF;
+                    
+                    // Sürücüyü başlat
+                    extern void init_rtl8139(unsigned int io_base, unsigned char irq);
+                    init_rtl8139(io_base, irq);
+                }
 
                 // Eğer cihaz tek fonksiyonluysa diğer fonksiyonları taramaya gerek yok
                 if (func == 0) {

@@ -1,4 +1,6 @@
 #include "kheap.h"
+#include "spinlock.h"
+#include "common.h"
 
 // 4 MB'lık statik Heap alanı (.bss bölümüne hizalı olarak yerleşecek)
 #define HEAP_SIZE (4 * 1024 * 1024)
@@ -28,6 +30,7 @@ void *kmalloc(unsigned int size) {
 
     unsigned int total_size = aligned_size + sizeof(struct heap_header);
 
+    unsigned int flags = irq_save();
     struct heap_header *current = heap_first;
     
     // İlk uygun bloğu bul (First-Fit)
@@ -54,11 +57,13 @@ void *kmalloc(unsigned int size) {
 
             // Bloğu dolu olarak işaretle ve verinin başlangıç adresini dön
             current->is_free = 0;
+            irq_restore(flags);
             return (void *)((unsigned int)current + sizeof(struct heap_header));
         }
         current = current->next;
     }
 
+    irq_restore(flags);
     put_str("[HATA] Kernel Heap yetersiz bellek!\n");
     return 0; // Yer bulunamadı
 }
@@ -66,10 +71,12 @@ void *kmalloc(unsigned int size) {
 void kfree(void *ptr) {
     if (ptr == 0) return;
 
+    unsigned int flags = irq_save();
     // Veri adresinden geriye doğru giderek header'ı bul
     struct heap_header *block = (struct heap_header *)((unsigned int)ptr - sizeof(struct heap_header));
     
     if (block->is_free) {
+        irq_restore(flags);
         put_str("[HATA] Zaten bos olan bir bellek serbest birakilmak istendi!\n");
         return;
     }
@@ -93,4 +100,5 @@ void kfree(void *ptr) {
             block->next->prev = block->prev;
         }
     }
+    irq_restore(flags);
 }

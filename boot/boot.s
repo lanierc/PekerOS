@@ -1,6 +1,6 @@
 ; boot/boot.s
 MAGIC    equ 0x1BADB002
-FLAGS    equ 0x03
+FLAGS    equ 0x03 ; Bit 0: Align, Bit 1: Memory Info
 CHECKSUM equ -(MAGIC + FLAGS)
 
 section .multiboot
@@ -32,10 +32,10 @@ _start:
     ; Set up physical stack temporarily
     mov esp, (stack_top - 0xC0000000)
 
-    ; Populate 4 boot page tables (16MB)
+    ; Populate 128 boot page tables (512MB)
     mov edi, (boot_page_table1 - 0xC0000000)
     mov esi, 0
-    mov ecx, 4096 ; 4 tables * 1024 entries
+    mov ecx, 131072 ; 128 tables * 1024 entries = 512MB
 .fill_table:
     mov edx, esi
     or edx, 3 ; Present + R/W
@@ -47,29 +47,20 @@ _start:
     ; Set up boot_page_directory
     mov edi, (boot_page_directory - 0xC0000000)
     
-    ; Table 1
+    ; Loop to map 128 tables to both identity and higher-half
     mov eax, (boot_page_table1 - 0xC0000000)
     or eax, 3
-    mov [edi], eax
-    mov [edi + 768 * 4], eax
+    mov ecx, 128
+    mov esi, 0
+.map_tables:
+    ; Identity map (0, 1, 2...)
+    mov [edi + esi * 4], eax
+    ; Higher-half map (768, 769, 770...)
+    mov [edi + (768 + esi) * 4], eax
     
-    ; Table 2
-    mov eax, (boot_page_table2 - 0xC0000000)
-    or eax, 3
-    mov [edi + 4], eax
-    mov [edi + 769 * 4], eax
-    
-    ; Table 3
-    mov eax, (boot_page_table3 - 0xC0000000)
-    or eax, 3
-    mov [edi + 8], eax
-    mov [edi + 770 * 4], eax
-    
-    ; Table 4
-    mov eax, (boot_page_table4 - 0xC0000000)
-    or eax, 3
-    mov [edi + 12], eax
-    mov [edi + 771 * 4], eax
+    add eax, 4096 ; Next table
+    inc esi
+    loop .map_tables
 
     ; Enable paging
     mov eax, (boot_page_directory - 0xC0000000)
@@ -123,7 +114,7 @@ idt_flush:
 
 global tss_flush
 tss_flush:
-    mov ax, 0x2B      ; TSS selector (index 5, RPL 3)
+    mov ax, 0x28      ; TSS selector (index 5, RPL 0)
     ltr ax
     ret
 
@@ -369,13 +360,7 @@ align 4096
 boot_page_directory:
     resb 4096
 boot_page_table1:
-    resb 4096
-boot_page_table2:
-    resb 4096
-boot_page_table3:
-    resb 4096
-boot_page_table4:
-    resb 4096
+    resb 4096 * 128 ; 128 tables for 512MB
 
 align 16
 stack_bottom:

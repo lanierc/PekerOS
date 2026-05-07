@@ -1,9 +1,12 @@
 #include "ata.h"
+#include "spinlock.h"
 
 extern void outb(unsigned short port, unsigned char val);
 extern unsigned char inb(unsigned short port);
 extern void outw(unsigned short port, unsigned short val);
 extern unsigned short inw(unsigned short port);
+
+static spinlock_t ata_lock = SPINLOCK_INIT;
 
 // BSY (Busy) bitinin 0 olmasını bekle
 void ata_wait_bsy(void) {
@@ -17,6 +20,7 @@ void ata_wait_drq(void) {
 
 // LBA28 modunda 1 sektör (512 byte) oku
 void ata_read_sector(unsigned int lba, unsigned char *buffer) {
+    spin_lock(&ata_lock);
     ata_wait_bsy();
     
     outb(ATA_PRIMARY_DRV_HEAD, 0xE0 | ((lba >> 24) & 0x0F)); // Master drive + LBA bit 24-27
@@ -35,10 +39,12 @@ void ata_read_sector(unsigned int lba, unsigned char *buffer) {
         buffer[i * 2] = (unsigned char)(word & 0xFF);
         buffer[i * 2 + 1] = (unsigned char)((word >> 8) & 0xFF);
     }
+    spin_unlock(&ata_lock);
 }
 
 // LBA28 modunda 1 sektör (512 byte) yaz
 void ata_write_sector(unsigned int lba, unsigned char *buffer) {
+    spin_lock(&ata_lock);
     ata_wait_bsy();
     
     outb(ATA_PRIMARY_DRV_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
@@ -60,4 +66,5 @@ void ata_write_sector(unsigned int lba, unsigned char *buffer) {
     // Diskin yazmayı bitirmesi için FLUSH CACHE
     outb(ATA_PRIMARY_COMMAND, 0xE7);
     ata_wait_bsy();
+    spin_unlock(&ata_lock);
 }

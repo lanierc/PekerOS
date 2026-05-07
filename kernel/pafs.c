@@ -2,6 +2,14 @@
 #include "kheap.h"
 #include "ata.h"
 #include "vfs.h"
+#include "spinlock.h"
+
+// Dosyanın üst kısmına ekleyin:
+static void pafs_save_superblock(void);
+static void pafs_save_bitmap(void);
+static void pafs_save_inode(int ino);
+
+static spinlock_t pafs_lock = SPINLOCK_INIT;
 
 // Bellek içi hızlı erişim işaretçileri
 static struct pafs_superblock *sb;
@@ -15,7 +23,7 @@ static unsigned char *block_bitmap; // 0 = boş, 1 = dolu
 #define LBA_BITMAP 17
 #define LBA_DATA_START 18
 
-static struct vfs_dirent dirent;
+// static struct vfs_dirent dirent; // Kaldirildi: Thread-safe degil
 static vfs_node_t *pafs_root_node = 0;
 
 // Bit işlemleri
@@ -47,19 +55,37 @@ static int alloc_block() {
         if (!pafs_bitmap_test(i)) {
             pafs_bitmap_set(i);
             sb->free_blocks--;
+            pafs_save_bitmap();
+            pafs_save_superblock();
             return i;
         }
     }
     return -1;
 }
 
-// Metadata'yı diske kaydet
-static void save_metadata() {
+// Superblock'ı diske kaydet
+static void pafs_save_superblock() {
     ata_write_sector(LBA_SUPERBLOCK, (unsigned char *)sb);
+}
+
+// Inode tablosunun belirli bir kısmını (1 sektör) diske kaydet
+static void pafs_save_inode(int ino) {
+    int sector_idx = ino / (512 / sizeof(struct pafs_inode));
+    ata_write_sector(LBA_INODES_START + sector_idx, (unsigned char *)inodes + (sector_idx * 512));
+}
+
+// Bitmap'i diske kaydet
+static void pafs_save_bitmap() {
+    ata_write_sector(LBA_BITMAP, block_bitmap);
+}
+
+// Tüm Metadata'yı diske kaydet (Açılış/Format için)
+static void save_metadata() {
+    pafs_save_superblock();
     for (int i = 0; i < LBA_INODES_COUNT; i++) {
         ata_write_sector(LBA_INODES_START + i, (unsigned char *)inodes + (i * 512));
     }
-    ata_write_sector(LBA_BITMAP, block_bitmap);
+    pafs_save_bitmap();
 }
 
 // Diski biçimlendir
@@ -102,6 +128,7 @@ void pafs_format(void) {
 
 // PAFS Başlatma
 void pafs_init(void) {
+    spin_lock(&pafs_lock);
     sb = (struct pafs_superblock *)kmalloc(512); 
     inodes = (struct pafs_inode *)kmalloc(16 * 512); // 8192 byte
     block_bitmap = (unsigned char *)kmalloc(512);
@@ -118,6 +145,7 @@ void pafs_init(void) {
         put_str("[INFO] PAFS disk bulunamadi. Formatlaniyor...\n");
         pafs_format();
     }
+    spin_unlock(&pafs_lock);
 }
 
 int pafs_mkdir(int parent_ino, const char *name) {
@@ -150,7 +178,7 @@ static int pafs_add_entry(int dir_ino, const char *name, int file_ino) {
                 entries[j].name[k] = '\0';
                 ata_write_sector(dir->blocks[i], block_data);
                 dir->size += sizeof(struct pafs_dir_entry);
-                save_metadata();
+                pafs_save_inode(dir_ino);
                 return 0;
             }
         }
@@ -230,18 +258,23 @@ found:
     
     // 5. Boyutu güncelle
     dir->size -= sizeof(struct pafs_dir_entry);
-    save_metadata();
+    pafs_save_inode(dir_ino);
     return 0;
 }
 
 int pafs_delete(int parent_ino, const char *name) {
+    spin_lock(&pafs_lock);
     int ino = pafs_find_entry(parent_ino, name);
-    if (ino == -1) return -1;
+    if (ino == -1) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     
     struct pafs_inode *file = &inodes[ino];
     
     // Klasör ise boş mu kontrol et
     if (file->type == PAFS_TYPE_DIR && !pafs_is_dir_empty(ino)) {
+        spin_unlock(&pafs_lock);
         return -2; // Dizin dolu hatası
     }
     
@@ -260,33 +293,59 @@ int pafs_delete(int parent_ino, const char *name) {
     sb->free_inodes++;
     
     // 3. Ebeveyn dizinden kaldır
-    return pafs_remove_entry(parent_ino, name);
+    int res = pafs_remove_entry(parent_ino, name);
+    pafs_save_superblock();
+    pafs_save_bitmap();
+    pafs_save_inode(ino);
+    spin_unlock(&pafs_lock);
+    return res;
 }
 
 int pafs_create(int parent_ino, const char *name, int is_dir) {
-    if (sb->free_inodes == 0) return -1;
+    spin_lock(&pafs_lock);
+    if (sb->free_inodes == 0) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     int dir_ino = parent_ino;
-    if (pafs_find_entry(dir_ino, name) != -1) return -1;
+    if (pafs_find_entry(dir_ino, name) != -1) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     int new_ino = find_free_inode();
-    if (new_ino == -1) return -1;
+    if (new_ino == -1) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     inodes[new_ino].type = is_dir ? PAFS_TYPE_DIR : PAFS_TYPE_FILE;
     inodes[new_ino].size = 0;
     for(int i=0; i<12; i++) inodes[new_ino].blocks[i] = 0;
     sb->free_inodes--;
-    if (pafs_add_entry(dir_ino, name, new_ino) == 0) return new_ino;
+    if (pafs_add_entry(dir_ino, name, new_ino) == 0) {
+        spin_unlock(&pafs_lock);
+        return new_ino;
+    }
     inodes[new_ino].type = PAFS_TYPE_FREE;
     sb->free_inodes++;
+    spin_unlock(&pafs_lock);
     return -1;
 }
 
 int pafs_write(const char *name, const char *data, int len) {
+    spin_lock(&pafs_lock);
     int ino = pafs_find_entry(sb->root_inode, name);
     if (ino == -1) {
         ino = pafs_create(sb->root_inode, name, 0);
-        if (ino == -1) return -1;
+        if (ino == -1) {
+            spin_unlock(&pafs_lock);
+            return -1;
+        }
     }
     struct pafs_inode *file = &inodes[ino];
-    if (file->type != PAFS_TYPE_FILE) return -1;
+    if (file->type != PAFS_TYPE_FILE) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     int bytes_written = 0;
     int block_idx = 0;
     unsigned char temp_buf[PAFS_BLOCK_SIZE];
@@ -305,15 +364,23 @@ int pafs_write(const char *name, const char *data, int len) {
         block_idx++;
     }
     file->size = bytes_written;
-    save_metadata();
+    pafs_save_inode(ino);
+    spin_unlock(&pafs_lock);
     return bytes_written;
 }
 
 int pafs_read(const char *name, char *buffer, int max_len) {
+    spin_lock(&pafs_lock);
     int ino = pafs_find_entry(sb->root_inode, name);
-    if (ino == -1) return -1;
+    if (ino == -1) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     struct pafs_inode *file = &inodes[ino];
-    if (file->type != PAFS_TYPE_FILE) return -1;
+    if (file->type != PAFS_TYPE_FILE) {
+        spin_unlock(&pafs_lock);
+        return -1;
+    }
     int total_to_read = file->size;
     if (total_to_read > max_len) total_to_read = max_len;
     int bytes_read = 0;
@@ -329,13 +396,21 @@ int pafs_read(const char *name, char *buffer, int max_len) {
         block_idx++;
     }
     if (bytes_read < max_len) buffer[bytes_read] = '\0';
+    spin_unlock(&pafs_lock);
     return bytes_read;
 }
 
 static unsigned int pafs_vfs_read(vfs_node_t *node, unsigned int offset, unsigned int size, unsigned char *buffer) {
+    spin_lock(&pafs_lock);
     struct pafs_inode *file = &inodes[node->inode];
-    if (file->type != PAFS_TYPE_FILE || file->size == 0) return 0;
-    if (offset >= file->size) return 0;
+    if (file->type != PAFS_TYPE_FILE || file->size == 0) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
+    if (offset >= file->size) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
     if (offset + size > file->size) size = file->size - offset;
     int bytes_read = 0;
     int block_idx = offset / PAFS_BLOCK_SIZE;
@@ -350,33 +425,118 @@ static unsigned int pafs_vfs_read(vfs_node_t *node, unsigned int offset, unsigne
         block_idx++;
         block_offset = 0;
     }
+    spin_unlock(&pafs_lock);
     return bytes_read;
 }
 
+static unsigned int pafs_vfs_write(vfs_node_t *node, unsigned int offset, unsigned int size, unsigned char *buffer) {
+    spin_lock(&pafs_lock);
+    struct pafs_inode *file = &inodes[node->inode];
+    if (file->type != PAFS_TYPE_FILE) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
+    
+    // PAFS sadece append modunu (veya tam blok baştan yazmayı) tam destekler. 
+    // Basitlik adına, doğrudan dosyanın üzerine yazacağız. 
+    // Eğer offset 0 ise ve size mevcut dosya boyutundan farklıysa boyut değişebilir.
+    int bytes_written = 0;
+    int block_idx = offset / PAFS_BLOCK_SIZE;
+    int block_offset = offset % PAFS_BLOCK_SIZE;
+    unsigned char temp_buf[PAFS_BLOCK_SIZE];
+    
+    while (bytes_written < size && block_idx < 12) {
+        if (file->blocks[block_idx] == 0) {
+            int b = alloc_block();
+            if (b == -1) break;
+            file->blocks[block_idx] = b;
+        }
+        
+        // Eğer bloğun bir kısmına yazıyorsak, önce eski veriyi okumalıyız
+        if (block_offset > 0 || (size - bytes_written) < PAFS_BLOCK_SIZE) {
+            ata_read_sector(file->blocks[block_idx], temp_buf);
+        } else {
+            memset(temp_buf, 0, PAFS_BLOCK_SIZE);
+        }
+        
+        int to_write = PAFS_BLOCK_SIZE - block_offset;
+        if (to_write > (size - bytes_written)) to_write = size - bytes_written;
+        
+        memcpy(temp_buf + block_offset, buffer + bytes_written, to_write);
+        ata_write_sector(file->blocks[block_idx], temp_buf);
+        
+        bytes_written += to_write;
+        block_idx++;
+        block_offset = 0;
+    }
+    
+    // Boyut büyüdüyse güncelle
+    if (offset + bytes_written > file->size) {
+        file->size = offset + bytes_written;
+    }
+    
+    pafs_save_inode(node->inode);
+    spin_unlock(&pafs_lock);
+    return bytes_written;
+}
+
+static void pafs_vfs_close(vfs_node_t *node) {
+    if (node && node != pafs_root_node) {
+        if (node->impl != 0) {
+            kfree((void *)node->impl);
+        }
+        kfree(node);
+    }
+}
+
 static struct vfs_dirent *pafs_vfs_readdir(vfs_node_t *node, unsigned int index) {
-    memset(&dirent, 0, sizeof(struct vfs_dirent));
+    // Statik dirent yerine heap veya stack kullanmaliyiz. 
+    // Ancak readdir arayüzü pointer döndüğü için düğüm içinde bir tampon tutmak en temizi.
+    // Şimdilik düğümün impl alanını veya ek bir alanı kullanabiliriz.
+    // vfs_dirent 132 byte. vfs_node_t içinde yer yok. 
+    // Bu yüzden geçici bir dirent allocate edip dönüyoruz (veya düğümün sonuna ekliyoruz).
+    // Basitlik için düğümün 'impl' kısmını bir dirent pointer'ı olarak kullanalım.
+
+    if (node->impl == 0) {
+        node->impl = (unsigned int)kmalloc(sizeof(struct vfs_dirent));
+    }
+    struct vfs_dirent *d = (struct vfs_dirent *)node->impl;
+    memset(d, 0, sizeof(struct vfs_dirent));
+
+    spin_lock(&pafs_lock);
     struct pafs_inode *dir = &inodes[node->inode];
-    if (dir->type != PAFS_TYPE_DIR || dir->size == 0) return 0;
+    if (dir->type != PAFS_TYPE_DIR || dir->size == 0) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
     int max_entries_per_block = PAFS_BLOCK_SIZE / sizeof(struct pafs_dir_entry);
     int block_idx = index / max_entries_per_block;
     int entry_in_block = index % max_entries_per_block;
     int total_entries = dir->size / sizeof(struct pafs_dir_entry);
-    if (index >= total_entries) return 0;
-    if (block_idx >= 12 || dir->blocks[block_idx] == 0) return 0;
+    if (index >= total_entries) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
+    if (block_idx >= 12 || dir->blocks[block_idx] == 0) {
+        spin_unlock(&pafs_lock);
+        return 0;
+    }
     unsigned char dir_data[PAFS_BLOCK_SIZE];
     ata_read_sector(dir->blocks[block_idx], dir_data);
     struct pafs_dir_entry *entries = (struct pafs_dir_entry *)dir_data;
-    dirent.ino = entries[entry_in_block].inode;
+    d->ino = entries[entry_in_block].inode;
     int i = 0;
     while (entries[entry_in_block].name[i] != '\0' && i < 27) {
-        dirent.name[i] = entries[entry_in_block].name[i];
+        d->name[i] = entries[entry_in_block].name[i];
         i++;
     }
-    dirent.name[i] = '\0';
-    return &dirent;
+    d->name[i] = '\0';
+    spin_unlock(&pafs_lock);
+    return d;
 }
 
 static vfs_node_t *pafs_vfs_finddir(vfs_node_t *node, char *name) {
+    spin_lock(&pafs_lock);
     int ino = pafs_find_entry(node->inode, name);
     if (ino != -1) {
         vfs_node_t *res = (vfs_node_t *)kmalloc(sizeof(vfs_node_t));
@@ -392,10 +552,14 @@ static vfs_node_t *pafs_vfs_finddir(vfs_node_t *node, char *name) {
         res->length = target_inode->size;
         res->flags = (target_inode->type == PAFS_TYPE_DIR) ? VFS_DIRECTORY : VFS_FILE;
         res->read = pafs_vfs_read;
+        res->write = pafs_vfs_write;
         res->readdir = pafs_vfs_readdir;
         res->finddir = pafs_vfs_finddir;
+        res->close = pafs_vfs_close; // Close fonksiyonunu ata
+        spin_unlock(&pafs_lock);
         return res;
     }
+    spin_unlock(&pafs_lock);
     return 0;
 }
 
@@ -410,5 +574,6 @@ vfs_node_t *pafs_get_vfs_root() {
     pafs_root_node->length = inodes[sb->root_inode].size;
     pafs_root_node->readdir = pafs_vfs_readdir;
     pafs_root_node->finddir = pafs_vfs_finddir;
+    pafs_root_node->close = pafs_vfs_close; // Klonlanan root düğümlerin temizlenmesi için close atanıyor
     return pafs_root_node;
 }

@@ -85,7 +85,7 @@ vfs_node_t *vfs_get_node_by_path(vfs_node_t *base, const char *path) {
         // Şimdilik sadece alt dizin araması yapıyoruz
         
         vfs_node_t *next = vfs_finddir(current, name);
-        kfree(current);
+        vfs_close(current);
         
         if (!next) return 0;
         current = next;

@@ -4,6 +4,29 @@
 // Türkçe Q Klavye Düzeni (Scancode Set 1)
 static int shift_pressed = 0;
 
+extern int shell_active;
+
+#define KBD_BUF_SIZE 256
+static unsigned char kbd_buffer[KBD_BUF_SIZE];
+static int kbd_buf_head = 0;
+static int kbd_buf_tail = 0;
+
+void keyboard_put(unsigned char c) {
+    if (shell_active) {
+        shell_input(c);
+    } else {
+        kbd_buffer[kbd_buf_head] = c;
+        kbd_buf_head = (kbd_buf_head + 1) % KBD_BUF_SIZE;
+    }
+}
+
+unsigned char keyboard_get() {
+    if (kbd_buf_head == kbd_buf_tail) return 0; // Boş
+    unsigned char c = kbd_buffer[kbd_buf_tail];
+    kbd_buf_tail = (kbd_buf_tail + 1) % KBD_BUF_SIZE;
+    return c;
+}
+
 // Boyutu derleyiciye bırakalım [] kullanarak
 static const unsigned char scancode_normal[] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '*', '-', '\b',
@@ -55,7 +78,7 @@ void keyboard_handler(struct registers *r) {
     unsigned char c = (shift_pressed) ? scancode_shift[scancode] : scancode_normal[scancode];
 
     if (c) {
-        shell_input(c);
+        keyboard_put(c);
     }
 }
 

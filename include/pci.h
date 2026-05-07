@@ -22,6 +22,9 @@ typedef struct {
 
 // Fonksiyonlar
 unsigned short pci_config_read_word(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset);
+unsigned int pci_config_read_dword(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset);
+void pci_config_write_word(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset, unsigned short value);
+void pci_config_write_dword(unsigned char bus, unsigned char slot, unsigned char func, unsigned char offset, unsigned int value);
 void pci_init();
 const char* pci_class_to_str(unsigned char class_code);
 const char* pci_subclass_to_str(unsigned char class_code, unsigned char subclass_code);

@@ -10,8 +10,10 @@
 #include "syscall.h"
 #include "pci.h"
 #include "vbe.h"
+#include "gui.h"
 #include "mouse.h"
 #include "vfs.h"
+#include "serial.h"
 
 extern vfs_node_t *pafs_get_vfs_root();
 
@@ -91,6 +93,14 @@ void scroll() {
 }
 
 void put_char(char c) {
+    // Tüm çıkışları seri porta da gönder (Debug için)
+    serial_write(c);
+
+    if (vbe_is_active()) {
+        char buf[2] = {c, 0};
+        vbe_write(buf, 0x00FFFFFF);
+        return;
+    }
     if (c == '\n') {
         terminal_col = 0;
         terminal_row++;
@@ -149,6 +159,36 @@ void put_hex(unsigned int n) {
     }
 }
 
+// Gelişmiş Loglama ve Formatlı Yazdırma (Standart va_list kullanımı)
+void kprintf(const char* format, ...) {
+    __builtin_va_list args;
+    __builtin_va_start(args, format);
+    
+    char c;
+    while ((c = *format++) != '\0') {
+        if (c != '%') {
+            put_char(c);
+            continue;
+        }
+        
+        c = *format++;
+        if (c == 's') {
+            char* s = __builtin_va_arg(args, char*);
+            put_str(s);
+        } else if (c == 'd') {
+            int n = __builtin_va_arg(args, int);
+            put_int(n);
+        } else if (c == 'x') {
+            unsigned int n = __builtin_va_arg(args, unsigned int);
+            put_hex(n);
+        } else if (c == 'c') {
+            char ch = (char)__builtin_va_arg(args, int);
+            put_char(ch);
+        }
+    }
+    __builtin_va_end(args);
+}
+
 // String Fonksiyonları
 int strlen(const char *s) {
     int i = 0;
@@ -182,16 +222,20 @@ extern unsigned int stack_top;
 
 void task1_func() {
     while(1) {
-        ((char*)0xC00B8000)[158] = '1'; 
-        ((char*)0xC00B8000)[159] = 0x0E; 
+        if (!vbe_is_active()) {
+            ((char*)0xC00B8000)[158] = '1'; 
+            ((char*)0xC00B8000)[159] = 0x0E; 
+        }
         for(int i=0; i<1000000; i++) asm volatile("nop");
     }
 }
 
 void task2_func() {
     while(1) {
-        ((char*)0xC00B8000)[156] = '2';
-        ((char*)0xC00B8000)[157] = 0x0B; 
+        if (!vbe_is_active()) {
+            ((char*)0xC00B8000)[156] = '2';
+            ((char*)0xC00B8000)[157] = 0x0B; 
+        }
         for(int i=0; i<1000000; i++) asm volatile("nop");
     }
 }
@@ -200,20 +244,14 @@ void graphics_task() {
     while(1) {
         mouse_state_t* ms = mouse_get_state();
         
-        // Sol tık basılıysa çizim yap
-        if (ms->buttons & MOUSE_LEFT) {
-            vbe_draw_rect(ms->x, ms->y, 5, 5, 0x00E74C3C); // Güzel bir kırmızı
-            vbe_update_rect(ms->x, ms->y, 5, 5);          // Sadece çizilen alanı güncelle
-        }
-        
-        // Sağ tık basılıysa ekranı temizle
-        if (ms->buttons & MOUSE_RIGHT) {
-            vbe_draw_gradient();
-            vbe_update(); // Tüm ekranı güncelle
-        }
+        // 1. Tüm GUI bileşenlerini arka tampona çiz (Desktop + Windows + Taskbar)
+        gui_render();
 
-        // İmleci her zaman en üstte çiz
-        vbe_draw_cursor(ms->x, ms->y);
+        // 2. İmleci en üstte çiz
+        vbe_draw_cursor_simple(ms->x, ms->y);
+        
+        // 3. Arka tampondaki her şeyi fiziksel ekrana kopyala
+        vbe_update();
         
         // CPU'yu %100 yormamak için kısa bekleme
         for(int i = 0; i < 10000; i++) asm volatile("nop");
@@ -232,16 +270,19 @@ void user_mode_test() {
 
 void start_graphics(struct multiboot_info* mbi){
     vbe_init(mbi);
-    vbe_draw_gradient(); // Arka plani bir kez ciz
-    vbe_draw_rect(100, 100, 200, 150, 0x00E67E22); // Statik kutular
-    vbe_draw_rect(400, 300, 100, 100, 0x002ECC71);
-    vbe_update(); // Ekrana yansit
+    
+    if (!vbe_is_active()) {
+        put_str("[HATA] Grafik modu baslatilamadi!\n");
+        return;
+    }
 
-    vbe_write("\n   PEKER OS - Graphics Mode Activated\n", 0x00FFFFFF);
-    vbe_write("   ----------------------------------\n", 0x00F1C40F);
-    vbe_write("   Welcome to the future of PekerOS!\n", 0x00ECf0F1);
-
-    vbe_update(); // HER SEYI EKRANA YANSIT
+    // GUI Sistemini başlat
+    gui_init();
+    
+    // Masaüstünde test pencereleri oluştur
+    gui_create_window("PekerOS Desktop", 50, 50, 400, 300, 0x00ECF0F1); // Açık gri/beyaz pencere
+    gui_create_window("Sistem Bilgisi", 500, 100, 240, 180, 0x003498DB); // Mavi pencere
+    
     mouse_init();
     create_task("graphics", graphics_task, 0);
 }
@@ -249,6 +290,11 @@ void start_graphics(struct multiboot_info* mbi){
 // Kernel Giriş Noktası
 void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     global_mbi = mbi;
+    
+    // 0. Seri Portu Başlat (En önce!)
+    init_serial();
+    serial_print("\n--- PekerOS Kernel Log Started ---\n");
+
     // 1. GDT ve IDT'yi kur
     init_gdt();
     init_idt();
@@ -267,13 +313,14 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
         return;
     }
 
-    put_str("[OK] GDT yuklendi.\n");
-    put_str("[OK] IDT yuklendi.\n");
-    put_str("[OK] PIC yeniden haritalandi.\n");
+    kprintf("[OK] GDT yuklendi.\n");
+    kprintf("[OK] IDT yuklendi.\n");
+    kprintf("[OK] PIC yeniden haritalandi.\n");
 
     // 4. Fiziksel Bellek Yöneticisini (PMM) başlat
     init_pmm(mbi);
-    put_str("[OK] Fiziksel Bellek Yoneticisi (PMM) baslatildi.\n");
+    kprintf("[OK] PMM baslatildi. Toplam Bellek: %d MB\n", pmm_total_memory_kb() / 1024);
+    kprintf("[OK] Kullanilabilir Frame: %d / %d\n", pmm_free_frames(), pmm_total_frames());
 
     // 4.1. Sanal Bellek (Paging) başlat
     init_paging();
@@ -293,7 +340,6 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     kfree(test_ptr2);
 
     pafs_init();
-    pafs_write("merhaba.txt", "PekerOS Dosya Sistemine Hosgeldiniz!", 37);
 
     // VFS Başlat
     vfs_root = pafs_get_vfs_root();
@@ -315,8 +361,6 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     init_timer(100);
     put_str("[OK] Zamanlayici yuklendi (100 Hz).\n");
 
-    // 6. Fare sürücüsünü başlat (IRQ12)
-
     // 5. Klavye sürücüsünü başlat (IRQ1 handler'ı kurar ve IRQ1'i açar)
     init_keyboard();
     put_str("[OK] Klavye surucusu yuklendi.\n");
@@ -327,7 +371,13 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
 
     // Grafik gorevini baslat (Shell'den manuel baslatilacak)
     // start_graphics(mbi);
+
+    clear_scr();
+    put_str("========================================\n");
+    put_str("         PekerOS v0.2 - Kernel\n");
+    put_str("========================================\n\n");
     init_shell();
+    
     // 7. Kesmeleri etkinleştir ve bekleme döngüsüne gir
     asm volatile("sti");
 

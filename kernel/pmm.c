@@ -1,8 +1,8 @@
 #include "pmm.h"
 #include "common.h"
 
-// Maksimum 128MB destekle (32768 frame, 4KB bitmap)
-#define MAX_FRAMES 32768
+// Maksimum 4GB destekle (1,048,576 frame, 128KB bitmap)
+#define MAX_FRAMES 1048576
 
 // Bitmap: 1 = kullanımda, 0 = boş
 static unsigned char frame_bitmap[MAX_FRAMES / 8];
@@ -113,6 +113,28 @@ unsigned int alloc_frame(void) {
         }
     }
     return 0;  // Bellek yetersiz!
+}
+
+unsigned int alloc_contiguous_frames(int count) {
+    int current_count = 0;
+    unsigned int start_frame = 0;
+    
+    for (unsigned int f = 0; f < total_frames; f++) {
+        if (!bitmap_test(f)) {
+            if (current_count == 0) start_frame = f;
+            current_count++;
+            if (current_count == count) {
+                for (unsigned int i = start_frame; i < start_frame + count; i++) {
+                    bitmap_set(i);
+                    used_frames_count++;
+                }
+                return start_frame * FRAME_SIZE;
+            }
+        } else {
+            current_count = 0;
+        }
+    }
+    return 0; // Bellek yetersiz
 }
 
 // --- Frame Serbest Bırakma ---

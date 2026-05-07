@@ -2,6 +2,7 @@
 #include "common.h"
 #include "paging.h"
 #include "pci.h"
+#include "kheap.h"
 
 #define VBE_DISPI_IOPORT_INDEX 0x01CE
 #define VBE_DISPI_IOPORT_DATA  0x01CF
@@ -14,8 +15,10 @@
 #define VBE_DISPI_LFB_ENABLED  0x40
 
 extern unsigned char font8x16[256][16];
+#define VBE_VIRT_ADDR 0xE0000000
+
 static vbe_info_t vbe_info;
-static unsigned int* back_buffer = (unsigned int*)0xD0000000;
+static unsigned int* back_buffer = 0;
 static unsigned int mouse_bg_save[64]; // Fare altindaki orijinal pikselleri saklamak icin
 
 static void bga_write(unsigned short index, unsigned short data) {
@@ -25,33 +28,79 @@ static void bga_write(unsigned short index, unsigned short data) {
 
 void vbe_init(struct multiboot_info *mb_info) {
     unsigned int lfb_phys = 0;
-    if (mb_info->flags & (1 << 12)) {
-        lfb_phys = mb_info->framebuffer_addr;
-        vbe_info.width = mb_info->framebuffer_width;
-        vbe_info.height = mb_info->framebuffer_height;
-        vbe_info.pitch = mb_info->framebuffer_pitch;
-        vbe_info.bpp = mb_info->framebuffer_bpp;
-    } else {
-        lfb_phys = (pci_config_read_word(0, 2, 0, 0x12) << 16) | pci_config_read_word(0, 2, 0, 0x10);
-        lfb_phys &= 0xFFFFFFF0;
-        if (lfb_phys == 0 || lfb_phys == 0xFFFFFFFF) lfb_phys = 0xFD000000;
-        bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED);
-        bga_write(VBE_DISPI_INDEX_XRES, 800);
-        bga_write(VBE_DISPI_INDEX_YRES, 600);
-        bga_write(VBE_DISPI_INDEX_BPP, 32);
-        bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
-        vbe_info.width = 800;
-        vbe_info.height = 600;
-        vbe_info.pitch = 800 * 4;
-        vbe_info.bpp = 32;
+    int found = 0;
+    
+    // 1. Multiboot'tan Grafik Bilgilerini Al (En güvenilir yöntem)
+    if (mb_info && (mb_info->flags & (1 << 12))) {
+        // framebuffer_type: 0 = indexed, 1 = RGB, 2 = text
+        if (mb_info->framebuffer_type == 1) {
+            lfb_phys = (unsigned int)mb_info->framebuffer_addr;
+            vbe_info.width = mb_info->framebuffer_width;
+            vbe_info.height = mb_info->framebuffer_height;
+            vbe_info.pitch = mb_info->framebuffer_pitch;
+            vbe_info.bpp = mb_info->framebuffer_bpp;
+            found = 1;
+        }
     }
-    vbe_info.address = (unsigned int*)lfb_phys;
-    paging_map_memory(lfb_phys, lfb_phys, vbe_info.width * vbe_info.height * 4);
-    paging_map_memory(0x02000000, 0xD0000000, vbe_info.width * vbe_info.height * 4);
+    
+    // 2. PCI Üzerinden Grafik Kartını Tara (Fallback)
+    if (!found) {
+        for (int bus = 0; bus < 8; bus++) { // İlk birkaç bus yeterli
+            for (int dev = 0; dev < 32; dev++) {
+                unsigned short vendor = pci_config_read_word(bus, dev, 0, 0);
+                if (vendor == 0xFFFF) continue;
+                
+                unsigned short class_sub = pci_config_read_word(bus, dev, 0, 10);
+                if ((class_sub >> 8) == 0x03) { // Display Controller
+                    // BAR0 oku (LFB)
+                    lfb_phys = (pci_config_read_word(bus, dev, 0, 0x12) << 16) | pci_config_read_word(bus, dev, 0, 0x10);
+                    lfb_phys &= 0xFFFFFFF0;
+                    
+                    // BGA Mode Switch
+                    bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED);
+                    bga_write(VBE_DISPI_INDEX_XRES, 800);
+                    bga_write(VBE_DISPI_INDEX_YRES, 600);
+                    bga_write(VBE_DISPI_INDEX_BPP, 32);
+                    bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
+                    
+                    vbe_info.width = 800;
+                    vbe_info.height = 600;
+                    vbe_info.pitch = 800 * 4;
+                    vbe_info.bpp = 32;
+                    found = 1;
+                    break;
+                }
+            }
+            if (found) break;
+        }
+    }
+    
+    if (!found || lfb_phys < 0x100000) { // 1MB altı veya bulunamadıysa iptal et
+        vbe_set_active(0);
+        return;
+    }
+    
+    vbe_info.address = (unsigned int*)VBE_VIRT_ADDR;
+    
+    // 3. LFB'yi haritala
+    paging_map_memory(lfb_phys, VBE_VIRT_ADDR, vbe_info.width * vbe_info.height * 4);
+    
+    // 4. Back Buffer için bellek ayır (Kernel Heap)
+    if (!back_buffer) {
+        back_buffer = (unsigned int*)kmalloc(vbe_info.width * vbe_info.height * 4);
+    }
+    
+    if (!back_buffer) {
+        // Heap yetmediyse acil durum mapping (0xD0000000)
+        back_buffer = (unsigned int*)0xD0000000;
+        paging_map_memory(0x02000000, 0xD0000000, vbe_info.width * vbe_info.height * 4);
+    }
+
+    vbe_set_active(1); // Artık güvenle aktif edebiliriz
 }
 
 void vbe_put_pixel(int x, int y, unsigned int color) {
-    if (x < 0 || x >= vbe_info.width || y < 0 || y >= vbe_info.height) return;
+    if (x < 0 || x >= vbe_info.width || y < 0 || y >= vbe_info.height || !back_buffer) return;
     back_buffer[y * vbe_info.width + x] = color;
 }
 
@@ -182,6 +231,27 @@ void vbe_draw_cursor(int x, int y) {
     vbe_update_rect(x, y, 8, 8);
     last_cursor_x = x;
     last_cursor_y = y;
+}
+
+// GUI için basit imleç (Save/Restore yapmaz, sadece back_buffer'a çizer)
+void vbe_draw_cursor_simple(int x, int y) {
+    unsigned char cursor[8][8] = {
+        {2,2,0,0,0,0,0,0},
+        {2,1,2,0,0,0,0,0},
+        {2,1,1,2,0,0,0,0},
+        {2,1,1,1,2,0,0,0},
+        {2,1,1,1,1,2,0,0},
+        {2,1,1,2,2,2,0,0},
+        {2,1,2,0,0,0,0,0},
+        {2,2,0,0,0,0,0,0}
+    };
+
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (cursor[i][j] == 1) vbe_put_pixel(x + j, y + i, 0xFFFFFF);
+            else if (cursor[i][j] == 2) vbe_put_pixel(x + j, y + i, 0x000000);
+        }
+    }
 }
 
 static int vbe_active = 0;

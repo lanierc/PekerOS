@@ -6,6 +6,13 @@
 #define SYS_UPTIME 0
 #define SYS_WRITE  1
 #define SYS_EXIT   2
+#define SYS_GETCHAR 3
+#define SYS_OPEN   4
+#define SYS_READ   5
+#define SYS_WRITE_FD 6
+#define SYS_CLOSE  7
+#define SYS_SBRK   8
+#define SYS_CLEAR  9
 
 void init_syscalls();
 

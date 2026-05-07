@@ -2,6 +2,7 @@
 #include "kheap.h"
 #include "paging.h"
 #include "tss.h"
+#include "spinlock.h"
 
 static task_t* current_task = 0;
 static task_t* task_list = 0;
@@ -94,10 +95,20 @@ task_t* create_task(char* name, void (*entry_point)(), int is_user) {
     new_task->state = TASK_READY;
     new_task->next = 0;
     
-    // Görevi listeye ekle
+    // LibC Altyapısı İlk Değerleri
+    new_task->heap_start = 0x10000000; // 256MB seviyesinden heap başlar
+    new_task->heap_end = 0x10000000;
+    for (int k = 0; k < 16; k++) {
+        new_task->fd_table[k] = 0;
+        new_task->fd_offset[k] = 0;
+    }
+    
+    // Görevi listeye ekle (Kritik Bölge)
+    unsigned int flags = irq_save();
     task_t* tmp = task_list;
     while(tmp->next) tmp = tmp->next;
     tmp->next = new_task;
+    irq_restore(flags);
     
     return new_task;
 }
@@ -109,9 +120,13 @@ unsigned int schedule_internal(unsigned int current_esp) {
     // Mevcut görevin ESP'sini kaydet
     current_task->esp = current_esp;
     
-    // Bir sonraki hazır görevi bul
+    // Bir sonraki hazır görevi bul (DEAD olanları atla)
     task_t* next = current_task->next;
-    if (!next) next = task_list; // Başa dön
+    while (1) {
+        if (!next) next = task_list; // Başa dön
+        if (next->state != TASK_DEAD) break;
+        next = next->next;
+    }
     
     current_task = next;
     current_task->state = TASK_RUNNING;
@@ -120,4 +135,21 @@ unsigned int schedule_internal(unsigned int current_esp) {
     set_kernel_stack(current_task->kstack_top);
     
     return current_task->esp;
+}
+
+extern int shell_active;
+extern void print_prompt();
+
+void task_exit() {
+    unsigned int flags = irq_save();
+    task_t* current = get_current_task();
+    if (current && current->id != 1) { // Kernel task (PID 1) kapatılamaz
+        current->state = TASK_DEAD;
+        shell_active = 1;
+        print_prompt();
+    }
+    // Syscall üzerinden gelindiği için EFLAGS IF=0 olabilir. 
+    // Scheduler'ın çalışabilmesi için kesmeleri (interrupts) açmalıyız!
+    asm volatile("sti");
+    while(1) asm volatile("hlt");
 }
