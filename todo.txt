@@ -75,12 +75,12 @@
 
 ---
 
-## 🟣 Faz 6: Ağ Yığını (Networking)
-- [ ] **Ağ Sürücüleri (NIC)**
-    - [ ] RTL8139 veya E1000 ağ kartı sürücüsü
-- [ ] **Protokol Yığını (Network Stack)**
-    - [ ] Ethernet Frame ve ARP implementasyonu
-    - [ ] IPv4, ICMP (Ping desteği)
+## 🟢 Faz 6: Ağ Yığını (Networking) (Kısmen Tamamlandı)
+- [x] **Ağ Sürücüleri (NIC)**
+    - [x] RTL8139 ağ kartı sürücüsü (PCI keşfi, TX/RX, IRQ)
+- [x] **Protokol Yığını (Network Stack) - Temel**
+    - [x] Ethernet Frame ve ARP implementasyonu (Request/Reply)
+    - [x] IPv4, ICMP (Ping desteği - Echo Request/Reply)
     - [ ] UDP ve TCP protokolleri
 - [ ] **Soket API**
     - [ ] Kullanıcı programları için temel Socket API (BSD Sockets)

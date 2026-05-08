@@ -1,4 +1,5 @@
 #!/bin/bash
+# PekerOS Derleme Betiği
 # Çıktı klasörünü oluştur
 mkdir -p output
 
@@ -11,35 +12,57 @@ nasm -f elf32 boot/boot.s -o output/boot.o
 # C Derleme - ÖNEMLI: -fno-pie -fno-pic bare-metal kernel için şart!
 CFLAGS="-m32 -std=gnu99 -ffreestanding -O2 -Wall -fno-stack-protector -fno-pie -fno-pic -mno-sse -mno-sse2 -mno-mmx -Iinclude"
 
-gcc $CFLAGS -c kernel/kernel.c -o output/kernel.o
-gcc $CFLAGS -c kernel/gdt.c -o output/gdt.o
-gcc $CFLAGS -c kernel/idt.c -o output/idt.o
-gcc $CFLAGS -c kernel/irq.c -o output/irq.o
-gcc $CFLAGS -c kernel/keyboard.c -o output/keyboard.o
-gcc $CFLAGS -c kernel/shell.c -o output/shell.o
-gcc $CFLAGS -c kernel/timer.c -o output/timer.o
-gcc $CFLAGS -c kernel/pmm.c -o output/pmm.o
-gcc $CFLAGS -c kernel/paging.c -o output/paging.o
-gcc $CFLAGS -c kernel/kheap.c -o output/kheap.o
-gcc $CFLAGS -c kernel/pafs.c -o output/pafs.o
-gcc $CFLAGS -c kernel/ata.c -o output/ata.o
-gcc $CFLAGS -c kernel/task.c -o output/task.o
-gcc $CFLAGS -c kernel/tss.c -o output/tss.o
-gcc $CFLAGS -c kernel/syscall.c -o output/syscall.o
-gcc $CFLAGS -c kernel/pci.c -o output/pci.o
-gcc $CFLAGS -c kernel/vbe.c -o output/vbe.o
-gcc $CFLAGS -c kernel/font.c -o output/font.o
-gcc $CFLAGS -c kernel/mouse.c -o output/mouse.o
-gcc $CFLAGS -c kernel/elf.c -o output/elf.o
-gcc $CFLAGS -c kernel/vfs.c -o output/vfs.o
-gcc $CFLAGS -c kernel/panic.c -o output/panic.o
-gcc $CFLAGS -c kernel/gui.c -o output/gui.o
-gcc $CFLAGS -c kernel/serial.c -o output/serial.o
-gcc $CFLAGS -c kernel/rtl8139.c -o output/rtl8139.o
-gcc $CFLAGS -c kernel/net.c -o output/net.o
+# --- Core ---
+gcc $CFLAGS -c kernel/core/kernel.c  -o output/kernel.o
+gcc $CFLAGS -c kernel/core/gdt.c     -o output/gdt.o
+gcc $CFLAGS -c kernel/core/idt.c     -o output/idt.o
+gcc $CFLAGS -c kernel/core/irq.c     -o output/irq.o
+gcc $CFLAGS -c kernel/core/panic.c   -o output/panic.o
+gcc $CFLAGS -c kernel/core/serial.c  -o output/serial.o
+
+# --- Memory Management ---
+gcc $CFLAGS -c kernel/mm/pmm.c       -o output/pmm.o
+gcc $CFLAGS -c kernel/mm/paging.c    -o output/paging.o
+gcc $CFLAGS -c kernel/mm/kheap.c     -o output/kheap.o
+
+# --- Filesystem ---
+gcc $CFLAGS -c kernel/fs/pafs.c      -o output/pafs.o
+gcc $CFLAGS -c kernel/fs/vfs.c       -o output/vfs.o
+
+# --- Drivers ---
+gcc $CFLAGS -c kernel/drivers/ata.c       -o output/ata.o
+gcc $CFLAGS -c kernel/drivers/keyboard.c  -o output/keyboard.o
+gcc $CFLAGS -c kernel/drivers/mouse.c     -o output/mouse.o
+gcc $CFLAGS -c kernel/drivers/timer.c     -o output/timer.o
+gcc $CFLAGS -c kernel/drivers/pci.c       -o output/pci.o
+gcc $CFLAGS -c kernel/drivers/vbe.c       -o output/vbe.o
+gcc $CFLAGS -c kernel/drivers/font.c      -o output/font.o
+gcc $CFLAGS -c kernel/drivers/rtl8139.c   -o output/rtl8139.o
+
+# --- Networking ---
+gcc $CFLAGS -c kernel/net/net.c      -o output/net.o
+
+# --- Process Management ---
+gcc $CFLAGS -c kernel/proc/task.c    -o output/task.o
+gcc $CFLAGS -c kernel/proc/tss.c     -o output/tss.o
+gcc $CFLAGS -c kernel/proc/syscall.c -o output/syscall.o
+gcc $CFLAGS -c kernel/proc/elf.c     -o output/elf.o
+
+# --- UI ---
+gcc $CFLAGS -c kernel/ui/shell.c     -o output/shell.o
+gcc $CFLAGS -c kernel/ui/gui.c       -o output/gui.o
 
 # Linkleme
-ld -m elf_i386 -T linker.ld -o output/pekeros.bin output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o output/keyboard.o output/shell.o output/timer.o output/pmm.o output/paging.o output/kheap.o output/pafs.o output/ata.o output/task.o output/tss.o output/syscall.o output/pci.o output/vbe.o output/font.o output/mouse.o output/elf.o output/vfs.o output/panic.o output/gui.o output/serial.o output/rtl8139.o output/net.o
+ld -m elf_i386 -T linker.ld -o output/pekeros.bin \
+    output/boot.o output/kernel.o output/gdt.o output/idt.o output/irq.o \
+    output/panic.o output/serial.o \
+    output/pmm.o output/paging.o output/kheap.o \
+    output/pafs.o output/vfs.o \
+    output/ata.o output/keyboard.o output/mouse.o output/timer.o \
+    output/pci.o output/vbe.o output/font.o output/rtl8139.o \
+    output/net.o \
+    output/task.o output/tss.o output/syscall.o output/elf.o \
+    output/shell.o output/gui.o
 
 # Sanal Disk Oluştur (10 MB, eğer yoksa)
 if [ ! -f output/disk.img ]; then

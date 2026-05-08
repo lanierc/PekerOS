@@ -14,6 +14,7 @@
 #include "mouse.h"
 #include "vfs.h"
 #include "serial.h"
+#include "net.h"
 
 extern vfs_node_t *pafs_get_vfs_root();
 
@@ -268,6 +269,19 @@ void user_mode_test() {
     }
 }
 
+void udp_test_callback(void *data, int len, unsigned char *src_ip, unsigned short src_port) {
+    char buf[128];
+    if (len > 127) len = 127;
+    memcpy(buf, data, len);
+    buf[len] = '\0';
+    
+    kprintf("[UDP] %d.%d.%d.%d:%d -> '%s'\n", src_ip[0], src_ip[1], src_ip[2], src_ip[3], src_port, buf);
+    
+    // Echo: Geri ayni port'a gonder!
+    char *reply = "FerkanOS UDP Echo Server: Mesaj alindi!\n";
+    net_send_udp(src_ip, src_port, 1234, reply, strlen(reply));
+}
+
 void start_graphics(struct multiboot_info* mbi){
     vbe_init(mbi);
     
@@ -346,6 +360,13 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
 
     // Donanim Kesfi
     pci_init();
+
+    // UDP Test Sunucusu (Port 1234'u dinler)
+    if (udp_bind(1234, udp_test_callback) == 0) {
+        kprintf("[OK] UDP Echo Sunucusu port 1234'te baslatildi.\n");
+    } else {
+        kprintf("[HATA] UDP soketi olusturulamadi.\n");
+    }
 
     // 4.4. Multitasking başlat
     init_multitasking();

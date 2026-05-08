@@ -71,11 +71,34 @@ struct icmp_header {
     unsigned short sequence;
 };
 
+// UDP Başlığı
+struct udp_header {
+    unsigned short src_port;
+    unsigned short dest_port;
+    unsigned short length;
+    unsigned short checksum;
+};
+
 #pragma pack(pop)
+
+// UDP Soketleri için Callback Tipi
+typedef void (*udp_callback_t)(void *data, int len, unsigned char *src_ip, unsigned short src_port);
+
+#define MAX_UDP_SOCKETS 16
+
+struct udp_socket {
+    unsigned short local_port;
+    udp_callback_t callback;
+    int in_use;
+};
 
 // Fonksiyonlar
 void init_net(unsigned char *mac_addr);
 void net_handle_packet(void *packet, int length);
 void net_send_packet(void *data, int len);
+
+void net_send_ipv4(unsigned char *dest_ip, unsigned char protocol, void *payload, int payload_len);
+void net_send_udp(unsigned char *dest_ip, unsigned short dest_port, unsigned short src_port, void *payload, int payload_len);
+int udp_bind(unsigned short port, udp_callback_t callback);
 
 #endif
