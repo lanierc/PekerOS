@@ -308,9 +308,10 @@ void start_graphics(struct multiboot_info* mbi){
     // GUI Sistemini başlat
     gui_init();
     
-    // Masaüstünde test pencereleri oluştur
-    gui_create_window("PekerOS Desktop", 50, 50, 400, 300, 0x00ECF0F1); // Açık gri/beyaz pencere
-    gui_create_window("Sistem Bilgisi", 500, 100, 240, 180, 0x003498DB); // Mavi pencere
+    // Masaüstünde test pencereleri oluştur (Faz 10 Testleri)
+    gui_create_window("Sistem Bilgisi", 50, 50, 300, 200, 0x003498DB); // Mavi
+    gui_create_window("Dosya Yoneticisi", 150, 100, 400, 300, 0x002ECC71); // Yesil
+    gui_create_window("Terminal", 250, 200, 400, 250, 0x00000000); // Siyah
     
     mouse_init();
     create_task("graphics", graphics_task, 0);

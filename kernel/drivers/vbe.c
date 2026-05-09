@@ -187,6 +187,15 @@ void vbe_write(const char *str, unsigned int color) {
     }
 }
 
+void vbe_write_at(int x, int y, const char *str, unsigned int color) {
+    int cur_x = x;
+    while (*str) {
+        vbe_draw_char(cur_x, y, *str, color);
+        cur_x += 8;
+        str++;
+    }
+}
+
 static int last_cursor_x = -1;
 static int last_cursor_y = -1;
 

@@ -20,6 +20,7 @@ void vbe_draw_rect(int x, int y, int w, int h, unsigned int color);
 void vbe_draw_gradient();
 void vbe_draw_char(int x, int y, char c, unsigned int color);
 void vbe_write(const char *str, unsigned int color);
+void vbe_write_at(int x, int y, const char *str, unsigned int color);
 void vbe_draw_cursor(int x, int y);
 void vbe_draw_cursor_simple(int x, int y);
 void vbe_update();

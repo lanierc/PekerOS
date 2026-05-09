@@ -111,6 +111,10 @@ void mouse_handler(struct registers *r) {
                 if (m_state.y < 0) m_state.y = 0;
                 if (m_state.x > 795) m_state.x = 795;
                 if (m_state.y > 595) m_state.y = 595;
+
+                // GUI'yi bilgilendir
+                extern void gui_on_mouse_event(int x, int y, int buttons);
+                gui_on_mouse_event(m_state.x, m_state.y, m_state.buttons);
                 break;
         }
     }
