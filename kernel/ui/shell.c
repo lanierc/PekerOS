@@ -180,9 +180,19 @@ void execute_command(char* cmd) {
 
         if (dir && (dir->flags & VFS_DIRECTORY)) {
             int i = 0;
-            struct vfs_dirent *node = 0;
-            while ((node = vfs_readdir(dir, i))) {
-                put_str(node->name);
+            struct vfs_dirent *dirent = 0;
+            while ((dirent = vfs_readdir(dir, i))) {
+                put_str(dirent->name);
+                
+                // Klasor olup olmadigini anlamak icin node'u bulalim
+                vfs_node_t *file_node = vfs_finddir(dir, dirent->name);
+                if (file_node) {
+                    if (file_node->flags & VFS_DIRECTORY) {
+                        put_str("/");
+                    }
+                    vfs_close(file_node);
+                }
+                
                 put_str("  ");
                 i++;
             }
@@ -237,7 +247,7 @@ void execute_command(char* cmd) {
             if (entry != -1) {
                 put_str("Program baslatiliyor...\n");
                 shell_active = 0;
-                create_task(filename, (void (*)())entry, 0);
+                create_task(filename, (void (*)())entry, 1);
             } else {
                 put_str("Hata: ELF yuklenemedi.\n");
             }

@@ -1,6 +1,13 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+typedef unsigned char  uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int   uint32_t;
+typedef unsigned long long uint64_t;
+
+#define NULL ((void*)0)
+
 // Her yerde kullanılacak olan register yapısı
 struct registers {
     unsigned int ds;                  // push ds (elle itilen)
@@ -25,6 +32,10 @@ void put_int(int n);
 
 void *memcpy(void *dest, const void *src, int n);
 void *memset(void *s, int c, int n);
+int memcmp(const void *s1, const void *s2, int n);
+int strcmp(const char *s1, const char *s2);
+int strlen(const char *s);
+char *strcpy(char *dest, const char *src);
 
 // Kernel Panic
 void panic(const char *message, struct registers *regs);

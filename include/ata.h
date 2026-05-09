@@ -16,7 +16,7 @@
 
 void ata_wait_bsy(void);
 void ata_wait_drq(void);
-void ata_read_sector(unsigned int lba, unsigned char *buffer);
-void ata_write_sector(unsigned int lba, unsigned char *buffer);
+void ata_read_sector(unsigned char drive, unsigned int lba, unsigned char *buffer);
+void ata_write_sector(unsigned char drive, unsigned int lba, unsigned char *buffer);
 
 #endif

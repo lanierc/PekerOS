@@ -28,8 +28,7 @@ struct pafs_superblock {
 struct pafs_inode {
     unsigned int type;           // 1: Dosya, 2: Klasör
     unsigned int size;           // Dosya boyutu
-    unsigned int blocks[12];     // Veri blok numaraları (Maks 12 * 512 = 6KB dosya boyutu)
-    unsigned int padding[2];     // 64 byte hizalaması için (56 + 8)
+    unsigned int blocks[14];     // Veri blok numaraları (Maks 14 * 512 = 7KB dosya boyutu)
 };
 
 // Klasör Girdisi (Directory Entry)

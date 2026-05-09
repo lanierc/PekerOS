@@ -81,23 +81,41 @@
 - [x] **Protokol Yığını (Network Stack) - Temel**
     - [x] Ethernet Frame ve ARP implementasyonu (Request/Reply)
     - [x] IPv4, ICMP (Ping desteği - Echo Request/Reply)
-    - [ ] UDP ve TCP protokolleri
-- [ ] **Soket API**
-    - [ ] Kullanıcı programları için temel Socket API (BSD Sockets)
+    - [x] UDP protokolü ve temel Port/Soket binding
+    - [x] TCP protokolü (3-way Handshake, FIN, Multi-connection)
+- [x] **Soket API**
+    - [x] Kullanıcı programları için temel Socket API (BSD Sockets)
 
 ---
 
-## 🟠 Faz 7: İleri Düzey VFS ve Dosya Sistemleri
-- [ ] **Gelişmiş VFS (Virtual File System)**
-    - [ ] Mount noktaları desteği (Mount points)
-    - [ ] Sembolik ve sert bağlantılar (Symlinks & Hardlinks)
-- [ ] **Standart Dosya Sistemleri**
-    - [ ] Ext2 dosya sistemi okuma/yazma desteği
-    - [ ] FAT32 desteği (USB vb. için)
+## 🟢 Faz 7: Uygulama Katmanı Protokolleri (Sıradaki...)
+- [ ] **HTTP İstemcisi**
+    - [ ] TCP üzerinden GET/POST isteği gönderme
+    - [ ] HTTP yanıtlarını parse etme
+- [ ] **DNS Desteği**
+    - [ ] Alan adı çözümleme (Host -> IP)
 
 ---
 
-## 🔴 Faz 8: Gelişmiş GUI ve Masaüstü Ortamı
+## 🟢 Faz 8: İleri Düzey VFS ve Dosya Sistemleri (Tamamlandı)
+- [x] **Gelişmiş VFS (Virtual File System)**
+    - [x] Mount noktaları desteği (Mount points) ve Mount Tablosu
+    - [x] Sembolik Bağ (Symlink) çözünürlemesi (Follow Symlink)
+- [x] **Ext2 Dosya Sistemi**
+    - [x] Ext2 okuma desteği (Slave Disk /dev/ata1)
+    - [x] Modern 256-byte Inode desteği (Revision 1+)
+    - [x] Fast & Slow Symlink desteği
+
+---
+
+## 🟢 Faz 9: Kabuk ve Kullanıcı Deneyimi (Tamamlandı)
+- [x] **Shell Görsel İyileştirmeler**
+    - [x] `ls` komutunda klasörlerin `dir/` şeklinde gösterilmesi
+    - [x] Boot loglarının kalıcılığı ve hata ayıklama kolaylığı
+
+---
+
+## 🔴 Faz 10: Gelişmiş GUI ve Masaüstü Ortamı
 - [ ] **Pencere Yöneticisi (Window Manager)**
     - [ ] Çoklu pencere (Compositing/Z-Order) desteği
     - [ ] Olay güdümlü (Event-driven) mesajlaşma sistemi
@@ -107,7 +125,7 @@
 
 ---
 
-## 🟤 Faz 9: Çevresel Birimler ve Diğerleri
+## 🟤 Faz 11: Çevresel Birimler ve Diğerleri
 - [ ] **USB Desteği**
     - [ ] UHCI/OHCI/EHCI/xHCI kontrolcü sürücüleri
     - [ ] USB HID (Klavye, Mouse) ve Mass Storage (USB Bellek)

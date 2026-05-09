@@ -17,6 +17,8 @@
 #include "net.h"
 
 extern vfs_node_t *pafs_get_vfs_root();
+extern void ata_read_sector(unsigned char drive, unsigned int lba, unsigned char *buffer);
+extern void ata_write_sector(unsigned char drive, unsigned int lba, unsigned char *buffer);
 
 // Global değişkenler
 unsigned int terminal_row = 0;
@@ -205,6 +207,19 @@ int strcmp(const char *s1, const char *s2) {
     return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 
+char *strcpy(char *dest, const char *src) {
+    char *d = dest;
+    while ((*d++ = *src++));
+    return dest;
+}
+
+char *strncpy(char *dest, const char *src, int n) {
+    char *d = dest;
+    while (n-- && (*d++ = *src++));
+    while (n-- > 0) *d++ = '\0';
+    return dest;
+}
+
 void *memcpy(void *dest, const void *src, int n) {
     char *d = dest;
     const char *s = src;
@@ -302,6 +317,21 @@ void start_graphics(struct multiboot_info* mbi){
 }
 
 // Kernel Giriş Noktası
+static unsigned int ata_read_device1(vfs_node_t *node, unsigned int offset, unsigned int size, unsigned char *buffer) {
+    unsigned int start_sector = offset / 512;
+    unsigned int end_sector = (offset + size - 1) / 512;
+    unsigned char sector_buf[512];
+    unsigned int read_bytes = 0;
+    for (unsigned int s = start_sector; s <= end_sector; s++) {
+        ata_read_sector(1, s, sector_buf);
+        unsigned int off = (s == start_sector) ? (offset % 512) : 0;
+        unsigned int len = (s == end_sector) ? ((offset + size - 1) % 512 - off + 1) : (512 - off);
+        memcpy(buffer + read_bytes, sector_buf + off, len);
+        read_bytes += len;
+    }
+    return read_bytes;
+}
+
 void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     global_mbi = mbi;
     
@@ -317,7 +347,7 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     irq_remap();
 
     // 3. Ekranı temizle ve karşılama mesajı göster
-    clear_scr();
+    put_str("\n\n");
     put_str("========================================\n");
     put_str("         PekerOS v0.2 - Kernel\n");
     put_str("========================================\n\n");
@@ -354,9 +384,33 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     kfree(test_ptr2);
 
     pafs_init();
+    tcp_init();
+
+    // 5. Zamanlayıcıyı başlat (100 Hz = her 10ms'de bir tick)
+    init_timer(100);
+    put_str("[OK] Zamanlayici yuklendi (100 Hz).\n");
+
 
     // VFS Başlat
     vfs_root = pafs_get_vfs_root();
+    put_str("[VFS] Kök dosya sistemi (PAFS) bağlandı.\n");
+
+    // Faz 8: Mount test (VFS_ROOT artik hazir)
+    put_str("[VFS] /mnt klasoru aranıyor...\n");
+    vfs_node_t *mnt_node = vfs_get_node_by_path(vfs_root, "/mnt");
+    if (mnt_node) {
+        vfs_node_t *dev_ata1 = kmalloc(sizeof(vfs_node_t));
+        memset(dev_ata1, 0, sizeof(vfs_node_t));
+        strcpy(dev_ata1->name, "ata1");
+        dev_ata1->flags = VFS_FILE;
+        dev_ata1->read = (void *)ata_read_device1;
+        
+        extern vfs_node_t *ext2_init(vfs_node_t *dev);
+        vfs_node_t *ext2_root = ext2_init(dev_ata1);
+        if (ext2_root) {
+            vfs_mount("/mnt", ext2_root);
+        }
+    }
 
     // Donanim Kesfi
     pci_init();
@@ -378,9 +432,6 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     create_task("gorev2", task2_func, 0); // Kernel task
     // create_task("user_task", user_mode_test, 1); // RING 3 TASK! (Su anlik kapali)
 
-    // 5. Zamanlayıcıyı başlat (100 Hz = her 10ms'de bir tick)
-    init_timer(100);
-    put_str("[OK] Zamanlayici yuklendi (100 Hz).\n");
 
     // 5. Klavye sürücüsünü başlat (IRQ1 handler'ı kurar ve IRQ1'i açar)
     init_keyboard();
@@ -393,7 +444,7 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     // Grafik gorevini baslat (Shell'den manuel baslatilacak)
     // start_graphics(mbi);
 
-    clear_scr();
+    put_str("\n--- SISTEM HAZIR ---\n");
     put_str("========================================\n");
     put_str("         PekerOS v0.2 - Kernel\n");
     put_str("========================================\n\n");

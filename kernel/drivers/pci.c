@@ -82,7 +82,8 @@ const char* pci_subclass_to_str(unsigned char class_code, unsigned char subclass
             case 0x01: return "Token Ring Controller";
             default: return "Network Interface";
         }
-    } else if (class_code == 0x03) { // Display
+    } 
+    else if (class_code == 0x03) { // Display
         switch (subclass_code) {
             case 0x00: return "VGA Compatible Controller";
             default: return "Video Controller";
@@ -146,7 +147,25 @@ void pci_init() {
                     extern void init_rtl8139(unsigned int io_base, unsigned char irq);
                     init_rtl8139(io_base, irq);
                 }
-
+                else if (vendor == 0x8086 && (device == 0x100E || device == 0x100F)) {
+                    put_str("\n[Intel E1000] Cihaz PCI uzerinde bulundu!\n");
+                    
+                    // Bus Mastering
+                    unsigned short command = pci_config_read_word(bus, dev, func, 0x04);
+                    command |= (1 << 2);
+                    pci_config_write_word(bus, dev, func, 0x04, command);
+                    
+                    // MMIO Base (BAR0, offset 0x10)
+                    unsigned int bar0 = pci_config_read_dword(bus, dev, func, 0x10);
+                    unsigned int phys_addr = bar0 & ~0xF; 
+                    
+                    // IRQ Line
+                    unsigned int irq = pci_config_read_dword(bus, dev, func, 0x3C) & 0xFF;
+                    
+                    // Sürücüyü başlat
+                    extern void init_e1000(unsigned int phys_addr, unsigned char irq);
+                    init_e1000(phys_addr, irq);
+                }
                 // Eğer cihaz tek fonksiyonluysa diğer fonksiyonları taramaya gerek yok
                 if (func == 0) {
                     unsigned short header_type = pci_config_read_word(bus, dev, 0, 0x0E);

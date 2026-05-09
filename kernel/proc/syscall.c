@@ -4,8 +4,9 @@
 #include "task.h"
 #include "paging.h"
 #include "pmm.h"
+#include "socket.h"
 
-static void* syscall_table[10];
+static void* syscall_table[20];
 
 extern unsigned char keyboard_get();
 extern void task_exit();
@@ -61,7 +62,7 @@ void sys_read(struct registers *regs) {
         return;
     }
     int read_bytes = vfs_read(current->fd_table[fd], current->fd_offset[fd], size, (unsigned char*)buf);
-    if (read_bytes > 0) {
+    if (read_bytes > 0 && current->fd_table[fd]->flags != VFS_SOCKET) {
         current->fd_offset[fd] += read_bytes;
     }
     regs->eax = read_bytes;
@@ -84,7 +85,7 @@ void sys_write_fd(struct registers *regs) {
         return;
     }
     int written = vfs_write(current->fd_table[fd], current->fd_offset[fd], size, (unsigned char*)buf);
-    if (written > 0) {
+    if (written > 0 && current->fd_table[fd]->flags != VFS_SOCKET) {
         current->fd_offset[fd] += written;
     }
     regs->eax = written;
@@ -141,14 +142,127 @@ void sys_write(struct registers *regs) {
     put_str(str);
 }
 
-void syscall_handler(struct registers *regs) {
-    // EAX içerisinde syscall numarası var
-    if (regs->eax >= 10) return;
+void sys_socket(struct registers *regs) {
+    int domain = regs->ebx;
+    int type = regs->ecx;
+    int protocol = regs->edx;
+    
+    vfs_node_t *node = socket_create(domain, type, protocol);
+    if (!node) {
+        regs->eax = -1;
+        return;
+    }
+    
+    task_t *current = get_current_task();
+    for (int i = 0; i < 16; i++) {
+        if (current->fd_table[i] == 0) {
+            current->fd_table[i] = node;
+            regs->eax = i;
+            return;
+        }
+    }
+    regs->eax = -1;
+}
 
+void sys_bind(struct registers *regs) {
+    int fd = regs->ebx;
+    struct sockaddr *addr = (struct sockaddr *)regs->ecx;
+    int addrlen = regs->edx;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd] || current->fd_table[fd]->flags != VFS_SOCKET) {
+        regs->eax = -1;
+        return;
+    }
+    regs->eax = socket_bind(current->fd_table[fd], addr, addrlen);
+}
+
+void sys_sendto(struct registers *regs) {
+    int fd = regs->ebx;
+    void *buf = (void *)regs->ecx;
+    int len = regs->edx;
+    struct sockaddr *dest = (struct sockaddr *)regs->esi;
+    int dest_len = regs->edi;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd] || current->fd_table[fd]->flags != VFS_SOCKET) {
+        regs->eax = -1;
+        return;
+    }
+    regs->eax = socket_sendto(current->fd_table[fd], buf, len, 0, dest, dest_len);
+}
+
+void sys_recvfrom(struct registers *regs) {
+    int fd = regs->ebx;
+    void *buf = (void *)regs->ecx;
+    int len = regs->edx;
+    struct sockaddr *src = (struct sockaddr *)regs->esi;
+    uint32_t *src_len = (uint32_t *)regs->edi;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd]) {
+        regs->eax = -1;
+        return;
+    }
+    regs->eax = socket_recvfrom(current->fd_table[fd], buf, len, 0, src, src_len);
+}
+
+void sys_connect(struct registers *regs) {
+    int fd = regs->ebx;
+    struct sockaddr *addr = (struct sockaddr *)regs->ecx;
+    int addrlen = regs->edx;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd] || current->fd_table[fd]->flags != VFS_SOCKET) {
+        regs->eax = -1;
+        return;
+    }
+    regs->eax = socket_connect(current->fd_table[fd], addr, addrlen);
+}
+
+void sys_listen(struct registers *regs) {
+    int fd = regs->ebx;
+    int backlog = regs->ecx;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd] || current->fd_table[fd]->flags != VFS_SOCKET) {
+        regs->eax = -1;
+        return;
+    }
+    regs->eax = socket_listen(current->fd_table[fd], backlog);
+}
+
+void sys_accept(struct registers *regs) {
+    int fd = regs->ebx;
+    struct sockaddr *addr = (struct sockaddr *)regs->ecx;
+    uint32_t *addrlen = (uint32_t *)regs->edx;
+    
+    task_t *current = get_current_task();
+    if (fd < 0 || fd >= 16 || !current->fd_table[fd] || current->fd_table[fd]->flags != VFS_SOCKET) {
+        regs->eax = -1;
+        return;
+    }
+    
+    vfs_node_t *new_node = socket_accept(current->fd_table[fd], addr, addrlen);
+    if (!new_node) {
+        regs->eax = -1;
+        return;
+    }
+    
+    for (int i = 0; i < 16; i++) {
+        if (current->fd_table[i] == 0) {
+            current->fd_table[i] = new_node;
+            regs->eax = i;
+            return;
+        }
+    }
+    regs->eax = -1;
+}
+
+void syscall_handler(struct registers *regs) {
+    if (regs->eax >= 20) return;
     void *handler = syscall_table[regs->eax];
     if (!handler) return;
-
-    // Handler fonksiyonunu çağır
     void (*handler_func)(struct registers *) = handler;
     handler_func(regs);
 }
@@ -164,6 +278,13 @@ void init_syscalls() {
     syscall_table[SYS_CLOSE] = sys_close;
     syscall_table[SYS_SBRK] = sys_sbrk;
     syscall_table[SYS_CLEAR] = sys_clear;
+    syscall_table[SYS_SOCKET] = sys_socket;
+    syscall_table[SYS_BIND] = sys_bind;
+    syscall_table[SYS_SENDTO] = sys_sendto;
+    syscall_table[SYS_RECVFROM] = sys_recvfrom;
+    syscall_table[SYS_CONNECT] = sys_connect;
+    syscall_table[SYS_LISTEN] = sys_listen;
+    syscall_table[SYS_ACCEPT] = sys_accept;
     
     put_str("[OK] Sistem cagrilari (Syscalls) baslatildi.\n");
 }

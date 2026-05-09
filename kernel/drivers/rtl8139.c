@@ -2,6 +2,7 @@
 #include "idt.h"
 #include "pmm.h"
 #include "paging.h"
+#include "net.h"
 
 // I/O fonksiyonları (kernel.c'den)
 extern void outb(unsigned short port, unsigned char val);
@@ -113,6 +114,7 @@ void init_rtl8139(unsigned int base_addr, unsigned char irq) {
     put_str("\n");
 
     init_net(mac_address);
+    net_register_driver(rtl8139_send_packet);
 
     // IRQ Kaydı
     irq_install_handler(irq, rtl8139_handler);

@@ -5,8 +5,8 @@ import struct
 BLOCK_SIZE = 512
 LBA_SUPERBLOCK = 0
 LBA_INODES_START = 1
-LBA_BITMAP = 15
-LBA_DATA_START = 16
+LBA_BITMAP = 17
+LBA_DATA_START = 18
 
 def add_file_to_pafs(disk_path, file_path, name_in_pafs):
     with open(disk_path, "r+b") as disk:
@@ -39,8 +39,8 @@ def add_file_to_pafs(disk_path, file_path, name_in_pafs):
         with open(file_path, "rb") as f:
             data = f.read()
         
-        if len(data) > 6 * 1024:
-            print("Hata: Dosya 6KB'dan buyuk!")
+        if len(data) > 14 * BLOCK_SIZE:
+            print("Hata: Dosya 7KB'dan buyuk!")
             return
 
         # 5. Blokları ayır ve veriyi yaz
@@ -70,15 +70,14 @@ def add_file_to_pafs(disk_path, file_path, name_in_pafs):
             disk.write(chunk.ljust(BLOCK_SIZE, b'\x00'))
 
         # 6. Inode'u güncelle
-        # struct pafs_inode: type, size, blocks[12], padding[2]
+        # struct pafs_inode: type, size, blocks[14]
         inode_struct = struct.pack("<II", 1, len(data)) # type=1 (FILE)
-        block_list = struct.pack("<12I", *(assigned_blocks + [0]*(12-len(assigned_blocks))))
-        padding = struct.pack("<II", 0, 0)
-        inodes_data[target_ino * 64 : (target_ino + 1) * 64] = inode_struct + block_list + padding
+        block_list = struct.pack("<14I", *(assigned_blocks + [0]*(14-len(assigned_blocks))))
+        inodes_data[target_ino * 64 : (target_ino + 1) * 64] = inode_struct + block_list
 
         # 7. Root dizinine (Inode 0) ekle
         root_itype, root_size = struct.unpack_from("<II", inodes_data, 0)
-        root_blocks = struct.unpack_from("<12I", inodes_data, 0 + 8)
+        root_blocks = struct.unpack_from("<14I", inodes_data, 0 + 8)
         
         # Root'un ilk bloğunu oku (Dir entries)
         disk.seek(root_blocks[0] * BLOCK_SIZE)

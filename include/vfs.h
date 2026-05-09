@@ -6,6 +6,8 @@
 #define VFS_FILE      0x01
 #define VFS_DIRECTORY 0x02
 #define VFS_MOUNTPOINT 0x04
+#define VFS_SOCKET     0x08
+#define VFS_SYMLINK    0x10
 
 struct vfs_node;
 
@@ -52,5 +54,6 @@ struct vfs_dirent *vfs_readdir(vfs_node_t *node, unsigned int index);
 vfs_node_t *vfs_finddir(vfs_node_t *node, char *name);
 vfs_node_t *vfs_get_node_by_path(vfs_node_t *base, const char *path);
 vfs_node_t *vfs_clone_node(vfs_node_t *node);
+void vfs_mount(char *path, vfs_node_t *root);
 
 #endif

@@ -25,14 +25,24 @@ int memcmp(const void *s1, const void *s2, int n) {
     return 0;
 }
 
+static void (*nic_send)(void*, int) = 0;
+
 void init_net(unsigned char *mac_addr) {
     memcpy(my_mac, mac_addr, MAC_LEN);
     for (int i = 0; i < MAX_UDP_SOCKETS; i++) udp_sockets[i].in_use = 0;
-    put_str("[NET] Ag katmani baslatildi. OS IP: 10.0.2.15\n");
+}
+
+uint32_t net_get_ip() {
+    return *(uint32_t *)my_ip;
+}
+
+void net_register_driver(void (*send_func)(void*, int)) {
+    nic_send = send_func;
+    put_str("[NET] Ag surucusu kaydedildi.\n");
 }
 
 void net_send_packet(void *data, int len) {
-    rtl8139_send_packet(data, len);
+    if (nic_send) nic_send(data, len);
 }
 
 int udp_bind(unsigned short port, udp_callback_t callback) {
@@ -98,6 +108,34 @@ void net_send_udp(unsigned char *dest_ip, unsigned short dest_port, unsigned sho
     kfree(buffer);
 }
 
+void net_send_arp_request(unsigned char *target_ip) {
+    int total_len = sizeof(struct eth_header) + sizeof(struct arp_packet);
+    unsigned char *buffer = (unsigned char *)kmalloc(total_len);
+    if (!buffer) return;
+
+    struct eth_header *eth = (struct eth_header *)buffer;
+    static unsigned char broadcast_mac[MAC_LEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    memcpy(eth->dest_mac, broadcast_mac, MAC_LEN);
+    memcpy(eth->src_mac, my_mac, MAC_LEN);
+    eth->eth_type = htons(ETH_TYPE_ARP);
+
+    struct arp_packet *arp = (struct arp_packet *)(buffer + sizeof(struct eth_header));
+    arp->hw_type = htons(1);
+    arp->proto_type = htons(ETH_TYPE_IPV4);
+    arp->hw_len = 6;
+    arp->proto_len = 4;
+    arp->opcode = htons(1); // Request
+    
+    memcpy(arp->sender_mac, my_mac, MAC_LEN);
+    memcpy(arp->sender_ip, my_ip, IP_LEN);
+    memset(arp->target_mac, 0, MAC_LEN);
+    memcpy(arp->target_ip, target_ip, IP_LEN);
+
+    put_str("[NET] ARP Istegi gonderiliyor...\n");
+    net_send_packet(buffer, total_len);
+    kfree(buffer);
+}
+
 // Basit Checksum Hesaplama (RFC 1071)
 unsigned short calculate_checksum(void *addr, int count) {
     register unsigned int sum = 0;
@@ -123,27 +161,20 @@ void net_handle_arp(struct eth_header *eth, struct arp_packet *arp) {
     if (ntohs(arp->opcode) == 1) { // ARP Request
         // Bize mi soruyorlar?
         if (memcmp(arp->target_ip, my_ip, IP_LEN) == 0) {
-            put_str("[NET] ARP İstegi alindi! (Bizi ariyorlar). Cevap gonderiliyor...\n");
+            put_str("[NET] ARP Istegi alindi! Cevap gonderiliyor...\n");
             
-            // Cevap paketini hazırlayalım
-            // Mevcut paketin üzerine yazıp direkt geri yollamak en kolayıdır.
-            
-            // Ethernet başlığı
             memcpy(eth->dest_mac, eth->src_mac, MAC_LEN);
             memcpy(eth->src_mac, my_mac, MAC_LEN);
-            
-            // ARP verisi
             arp->opcode = htons(2); // Reply
-            
             memcpy(arp->target_mac, arp->sender_mac, MAC_LEN);
             memcpy(arp->target_ip, arp->sender_ip, IP_LEN);
-            
             memcpy(arp->sender_mac, my_mac, MAC_LEN);
             memcpy(arp->sender_ip, my_ip, IP_LEN);
-            
-            // Gönder
             net_send_packet(eth, sizeof(struct eth_header) + sizeof(struct arp_packet));
         }
+    } else if (ntohs(arp->opcode) == 2) { // ARP Reply
+        put_str("[NET] ARP Cevabi alindi. MAC adresi kaydedildi.\n");
+        memcpy(gateway_mac, arp->sender_mac, MAC_LEN);
     }
 }
 
@@ -181,14 +212,18 @@ void net_handle_udp(struct eth_header *eth, struct ipv4_header *ip, struct udp_h
     int payload_len = ntohs(udp->length) - sizeof(struct udp_header);
     void *payload = (void *)((unsigned char *)udp + sizeof(struct udp_header));
 
+    // Çekirdek içi eski callback mekanizması
     for (int i = 0; i < MAX_UDP_SOCKETS; i++) {
         if (udp_sockets[i].in_use && udp_sockets[i].local_port == dest_port) {
             if (udp_sockets[i].callback) {
                 udp_sockets[i].callback(payload, payload_len, ip->src_ip, src_port);
             }
-            break;
         }
     }
+
+    // Yeni: Kullanıcı katmanı Soket mekanizmasına pasla
+    extern void socket_dispatch_udp(uint16_t dest_port, uint8_t *data, uint16_t len, uint8_t *src_ip, uint16_t src_port);
+    socket_dispatch_udp(dest_port, payload, (uint16_t)payload_len, ip->src_ip, src_port);
 }
 
 void net_handle_ipv4(struct eth_header *eth, struct ipv4_header *ip) {
@@ -207,6 +242,10 @@ void net_handle_ipv4(struct eth_header *eth, struct ipv4_header *ip) {
             struct udp_header *udp = (struct udp_header *)((unsigned char *)ip + header_len);
             int udp_len = ntohs(ip->total_len) - header_len;
             net_handle_udp(eth, ip, udp, udp_len);
+        } else if (ip->protocol == 6) { // TCP
+            struct tcp_header *tcp = (struct tcp_header *)((unsigned char *)ip + header_len);
+            uint16_t tcp_len = ntohs(ip->total_len) - header_len;
+            tcp_input(ip, tcp, tcp_len);
         }
     }
 }

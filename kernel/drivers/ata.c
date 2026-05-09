@@ -19,21 +19,26 @@ void ata_wait_drq(void) {
 }
 
 // LBA28 modunda 1 sektör (512 byte) oku
-void ata_read_sector(unsigned int lba, unsigned char *buffer) {
+void ata_read_sector(unsigned char drive, unsigned int lba, unsigned char *buffer) {
     spin_lock(&ata_lock);
-    ata_wait_bsy();
     
-    outb(ATA_PRIMARY_DRV_HEAD, 0xE0 | ((lba >> 24) & 0x0F)); // Master drive + LBA bit 24-27
-    outb(ATA_PRIMARY_SECCOUNT, 1);                           // Read 1 sector
+    // Once surucuyu sec (Master: 0xE0, Slave: 0xF0)
+    outb(ATA_PRIMARY_DRV_HEAD, (drive == 0 ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
+    // Surucu degistikten sonra 400ns bekleme
+    for(int i=0; i<4; i++) inb(ATA_PRIMARY_STATUS); 
+    
+    // Sürücü hazır olana kadar bekle (BSY ve DRQ temiz olmalı)
+    while (inb(ATA_PRIMARY_STATUS) & 0x88); 
+    
+    outb(ATA_PRIMARY_SECCOUNT, 1);
     outb(ATA_PRIMARY_LBA_LO, (unsigned char)(lba));
     outb(ATA_PRIMARY_LBA_MID, (unsigned char)(lba >> 8));
     outb(ATA_PRIMARY_LBA_HI, (unsigned char)(lba >> 16));
-    outb(ATA_PRIMARY_COMMAND, 0x20);                         // Command: Read Sector
+    outb(ATA_PRIMARY_COMMAND, 0x20);
     
     ata_wait_bsy();
     ata_wait_drq();
     
-    // Veriyi 16-bit word olarak porttan al
     for (int i = 0; i < 256; i++) {
         unsigned short word = inw(ATA_PRIMARY_DATA);
         buffer[i * 2] = (unsigned char)(word & 0xFF);
@@ -43,16 +48,19 @@ void ata_read_sector(unsigned int lba, unsigned char *buffer) {
 }
 
 // LBA28 modunda 1 sektör (512 byte) yaz
-void ata_write_sector(unsigned int lba, unsigned char *buffer) {
+void ata_write_sector(unsigned char drive, unsigned int lba, unsigned char *buffer) {
     spin_lock(&ata_lock);
+    
+    outb(ATA_PRIMARY_DRV_HEAD, (drive == 0 ? 0xE0 : 0xF0) | ((lba >> 24) & 0x0F));
+    for(int i=0; i<4; i++) inb(ATA_PRIMARY_STATUS);
+
     ata_wait_bsy();
     
-    outb(ATA_PRIMARY_DRV_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
     outb(ATA_PRIMARY_SECCOUNT, 1);
     outb(ATA_PRIMARY_LBA_LO, (unsigned char)(lba));
     outb(ATA_PRIMARY_LBA_MID, (unsigned char)(lba >> 8));
     outb(ATA_PRIMARY_LBA_HI, (unsigned char)(lba >> 16));
-    outb(ATA_PRIMARY_COMMAND, 0x30);                         // Command: Write Sector
+    outb(ATA_PRIMARY_COMMAND, 0x30);
     
     ata_wait_bsy();
     ata_wait_drq();

@@ -29,7 +29,8 @@ char get_char() {
     return c;
 }
 
-void _start() {
+void main() {
+    char *msg = "Sayi Tahmin Oyununa Hosgeldiniz!\n";
     print("\n--- Sayi Tahmin Oyunu ---\n");
     print("1 ile 9 arasinda bir sayi tuttum.\n");
     print("Tahmininizi girin (Cikmak icin 'q'):\n");

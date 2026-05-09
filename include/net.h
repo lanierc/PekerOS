@@ -2,6 +2,7 @@
 #define NET_H
 
 #include "common.h"
+#include "tcp.h"
 
 // Endianness Dönüştürme (x86 Little Endian -> Network Big Endian)
 static inline unsigned short htons(unsigned short v) {
@@ -94,8 +95,10 @@ struct udp_socket {
 
 // Fonksiyonlar
 void init_net(unsigned char *mac_addr);
+void net_register_driver(void (*send_func)(void*, int));
 void net_handle_packet(void *packet, int length);
 void net_send_packet(void *data, int len);
+uint32_t net_get_ip();
 
 void net_send_ipv4(unsigned char *dest_ip, unsigned char protocol, void *payload, int payload_len);
 void net_send_udp(unsigned char *dest_ip, unsigned short dest_port, unsigned short src_port, void *payload, int payload_len);

@@ -20,7 +20,7 @@ int strlen(const char *s) {
 }
 void print(char *s) { _write(1, s, strlen(s)); }
 
-void _start() {
+void main() {
     _clear();
     print("--- Mini-Vi (Pilo) Editoru ---\n");
     print("Kaydetmek ve cikmak icin 'ESC' tusuna basin.\n");

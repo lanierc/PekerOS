@@ -140,6 +140,10 @@ unsigned int schedule_internal(unsigned int current_esp) {
 extern int shell_active;
 extern void print_prompt();
 
+void schedule() {
+    asm volatile("sti; int $0x20");
+}
+
 void task_exit() {
     unsigned int flags = irq_save();
     task_t* current = get_current_task();

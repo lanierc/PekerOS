@@ -22,13 +22,13 @@ CORE_SRC    = kernel/core/kernel.c kernel/core/gdt.c kernel/core/idt.c \
 
 MM_SRC      = kernel/mm/pmm.c kernel/mm/paging.c kernel/mm/kheap.c
 
-FS_SRC      = kernel/fs/pafs.c kernel/fs/vfs.c
+FS_SRC      = kernel/fs/pafs.c kernel/fs/vfs.c kernel/fs/ext2.c
 
 DRIVER_SRC  = kernel/drivers/ata.c kernel/drivers/keyboard.c kernel/drivers/mouse.c \
               kernel/drivers/timer.c kernel/drivers/pci.c kernel/drivers/vbe.c \
-              kernel/drivers/font.c kernel/drivers/rtl8139.c
+              kernel/drivers/font.c kernel/drivers/rtl8139.c kernel/drivers/e1000.c
 
-NET_SRC     = kernel/net/net.c
+NET_SRC     = kernel/net/net.c kernel/net/socket.c kernel/net/tcp.c
 
 PROC_SRC    = kernel/proc/task.c kernel/proc/tss.c kernel/proc/syscall.c \
               kernel/proc/elf.c
@@ -55,7 +55,10 @@ DISK        = $(OUTDIR)/disk.img
 
 .PHONY: all clean run iso
 
-all: $(OUTDIR) $(KERNEL) $(DISK)
+all: $(OUTDIR) $(KERNEL) $(DISK) userland_apps
+
+userland_apps: $(DISK)
+	@cd userland && bash ./compile_user.sh
 
 $(OUTDIR):
 	@mkdir -p $(OUTDIR)
@@ -75,11 +78,11 @@ $(KERNEL): $(OBJECTS)
 		$(OUTDIR)/core/kernel.o $(OUTDIR)/core/gdt.o $(OUTDIR)/core/idt.o \
 		$(OUTDIR)/core/irq.o $(OUTDIR)/core/panic.o $(OUTDIR)/core/serial.o \
 		$(OUTDIR)/mm/pmm.o $(OUTDIR)/mm/paging.o $(OUTDIR)/mm/kheap.o \
-		$(OUTDIR)/fs/pafs.o $(OUTDIR)/fs/vfs.o \
+		$(OUTDIR)/fs/pafs.o $(OUTDIR)/fs/vfs.o $(OUTDIR)/fs/ext2.o \
 		$(OUTDIR)/drivers/ata.o $(OUTDIR)/drivers/keyboard.o $(OUTDIR)/drivers/mouse.o \
 		$(OUTDIR)/drivers/timer.o $(OUTDIR)/drivers/pci.o $(OUTDIR)/drivers/vbe.o \
-		$(OUTDIR)/drivers/font.o $(OUTDIR)/drivers/rtl8139.o \
-		$(OUTDIR)/net/net.o \
+		$(OUTDIR)/drivers/font.o $(OUTDIR)/drivers/rtl8139.o $(OUTDIR)/drivers/e1000.o \
+		output/net/net.o output/net/socket.o output/net/tcp.o \
 		$(OUTDIR)/proc/task.o $(OUTDIR)/proc/tss.o $(OUTDIR)/proc/syscall.o \
 		$(OUTDIR)/proc/elf.o \
 		$(OUTDIR)/ui/shell.o $(OUTDIR)/ui/gui.o
@@ -91,8 +94,9 @@ $(DISK):
 # QEMU ile çalıştır
 run: all
 	qemu-system-i386 -m 256 -drive format=raw,file=$(DISK) \
+		-drive format=raw,file=output/ext2.img \
 		-kernel $(KERNEL) -vga std \
-		-net nic,model=rtl8139 -net user,hostfwd=udp::1234-:1234
+		-net nic,model=rtl8139 -net user
 
 # ISO oluştur
 iso: all
@@ -105,4 +109,4 @@ push: all
 clean:
 	rm -rf $(OUTDIR)/*.o $(OUTDIR)/core $(OUTDIR)/mm $(OUTDIR)/fs \
 	       $(OUTDIR)/drivers $(OUTDIR)/net $(OUTDIR)/proc $(OUTDIR)/ui \
-	       $(KERNEL)
+	       $(KERNEL) output/disk.img

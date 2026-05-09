@@ -49,11 +49,11 @@ void panic(const char *message, struct registers *regs) {
 
     panic_row = 2;
     panic_col = 25;
-    panic_puts("##############################\n", 0x1F);
+    panic_puts("#################################\n", 0x1F);
     panic_col = 25;
-    panic_puts("#       !!! KERNEL PANIC !!!     #\n", 0x1F);
+    panic_puts("#      !!! KERNEL PANIC !!!     #\n", 0x1F);
     panic_col = 25;
-    panic_puts("##############################\n\n", 0x1F);
+    panic_puts("#################################\n\n", 0x1F);
 
     panic_col = 5;
     panic_puts("HATA: ", 0x1E); // Sarı yazı
