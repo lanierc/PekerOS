@@ -1,65 +1,71 @@
-# FerkanOS (PekerOS)
+# FerkanOS (PekerOS) İşletim Sistemi
 
-FerkanOS, x86 mimarisi üzerinde çalışan ve sıfırdan geliştirilen 32-bit bir işletim sistemi projesidir. Multiboot uyumlu bir önyükleyici (bootloader) ile başlayan süreç, bugün gelişmiş bellek yönetimi, grafik arayüzü, ağ yığını ve kullanıcı modu (User Mode) desteği olan bir çekirdeğe dönüşmüştür.
+FerkanOS, x86 mimarisi üzerinde çalışan, eğitim ve araştırma odaklı geliştirilmiş monolitik bir işletim sistemi çekirdeğidir. Projenin temel amacı, donanım seviyesinden kullanıcı uygulamalarına kadar modern bir işletim sisteminin tüm bileşenlerini sıfırdan inşa ederek düşük seviyeli sistem mimarilerini analiz etmektir.
 
-## Teknik Özellikler
+## Temel Mimari Bileşenler
 
-### Çekirdek ve Bellek Yönetimi
-- **Sanal Bellek:** 4KB sayfalama (Paging) ve 4-seviyeli hiyerarşi hazırlığı.
-- **Bellek Yöneticileri:** Fiziksel Bellek Yöneticisi (PMM) ve dinamik çekirdek yığını (Kernel Heap - kmalloc/kfree).
-- **Çoklu Görev (Multitasking):** Round-robin zamanlayıcı (Scheduler) ve görevler arası context switching.
-- **Sistem Çağrıları:** int 0x80 üzerinden erişilen POSIX uyumlu sistem çağrısı arayüzü.
+### 1. Çekirdek ve Önyükleme Süreci
+- **Önyükleyici (Bootloader):** Multiboot 1 standardı ile uyumlu, NASM ile yazılmış düşük seviyeli başlatma kodu.
+- **Kesme Yönetimi:** GDT (Global Descriptor Table) ve IDT (Interrupt Descriptor Table) yapılandırması. Donanım ve yazılım kesmeleri için özelleştirilmiş ISR (Interrupt Service Routines) ve IRQ (Interrupt Requests) işleyicileri.
+- **Zamanlayıcı:** PIT (Programmable Interval Timer) üzerinden 100Hz frekansında çalışan sistem saati ve görev zamanlayıcı.
 
-### Dosya Sistemi ve VFS
-- **VFS (Sanal Dosya Sistemi):** Mount noktaları, sembolik bağlar (Symlink) ve dosya sistemi soyutlama katmanı.
-- **PAFS:** Projeye özel tasarlanmış, basit ve hızlı Peker Gelişmiş Dosya Sistemi.
-- **Ext2 Desteği:** İkinci disk (ATA Slave) üzerinden Ext2 dosya sistemlerini (Revision 1+) okuma desteği.
-- **Aygıt Yönetimi:** ATA IDE sürücüsü (Master/Slave), PCI veri yolu keşfi ve yönetimi.
+### 2. Bellek Yönetimi (Memory Management)
+- **Fiziksel Bellek (PMM):** Bitmap tabanlı, 4KB sayfa boyutunda çalışan fiziksel çerçeve (frame) yöneticisi.
+- **Sanal Bellek (Paging):** Sayfa dizinleri ve tabloları üzerinden bellek korumalı (Memory Protection) adresleme. Çekirdeğin yüksek adreslere (Higher Half Kernel - 0xC0000000) taşınması.
+- **Dinamik Tahsisat:** Çekirdek içinde `kmalloc` ve `kfree` işlevlerini sağlayan heap yöneticisi.
 
-### Ağ Yığını (Networking)
-- **Sürücü Desteği:** RTL8139 ve E1000 ağ kartları için PCI tabanlı sürücüler.
-- **Protokoller:** Ethernet, ARP, IPv4, ICMP (Ping), UDP ve TCP (3-yönlü el sıkışma desteğiyle).
-- **Socket API:** Kullanıcı modu uygulamaları için BSD tarzı soket arayüzü.
+### 3. Sanal Dosya Sistemi (VFS) ve Depolama
+- **VFS Soyutlama Katmanı:** Dosya sistemi bağımsız bir arayüz üzerinden mount noktaları, dosya okuma/yazma ve dizin listeleme desteği.
+- **PAFS (Peker Advanced File System):** İmaj tabanlı, basit ve performans odaklı yerel dosya sistemi.
+- **Ext2 Sürücüsü:** Linux standartlarında Ext2 (Revision 1+) dosya sistemleri için tam okuma ve sembolik bağ (Symlink) çözünürleme desteği.
+- **Depolama Sürücüleri:** ATA IDE kontrolcüsü üzerinden Master/Slave disk yönetimi ve PCI veri yolu üzerinden aygıt keşfi.
 
-### Kullanıcı Arayüzü ve Grafik
-- **Grafik Motoru:** VESA VBE desteği (800x600 32-bit), çift tamponlama (Double Buffering).
-- **Giriş Birimleri:** Klavye (Türkçe Q) ve PS/2 Fare sürücüleri.
-- **Kabuk (fash):** Dosya yönetimi, uygulama çalıştırma ve sistem izleme komutlarını içeren gelişmiş komut satırı arayüzü.
+### 4. Ağ Protokol Yığını (Network Stack)
+- **Donanım Katmanı:** RTL8139 ve Intel E1000 ağ kartları için PCI sürücüleri.
+- **Alt Seviye Protokoller:** Ethernet II çerçeveleme, ARP (Adres Çözümleme Protokolü) ve IPv4 desteği.
+- **İletişim Katmanı:** ICMP (Ping), UDP ve tam durumlu (stateful) TCP protokolü.
+- **Soket API:** Standart BSD Soket arayüzü ile uyumlu `socket`, `bind`, `connect`, `send` ve `recv` çağrıları.
 
-## Proje Yapısı
+### 5. Süreç Yönetimi ve Kullanıcı Modu
+- **Çoklu Görev (Multitasking):** Round-robin algoritması kullanan, context switching yeteneğine sahip görev yöneticisi.
+- **Kullanıcı Modu (Ring 3):** TSS (Task State Segment) yapılandırması ile çekirdekten izole edilmiş kullanıcı alanı.
+- **ELF Yükleyici:** Standart ELF32 dosyalarını diskten yükleyerek kullanıcı modunda çalıştırma yeteneği.
 
-| Dizin | Açıklama |
-|---|---|
-| `boot/` | Multiboot uyumlu önyükleyici montaj kodları (NASM) |
-| `kernel/` | Çekirdek kaynak kodları (Bellek, Sürücüler, VFS, Network, Süreç Yönetimi) |
-| `include/` | Çekirdek alt sistemleri ve sürücüler için başlık dosyaları |
-| `userland/` | ELF formatında derlenen kullanıcı modu uygulamaları (vi, hello, oyunlar) |
-| `scripts/` | Derleme, disk imajı oluşturma ve QEMU çalıştırma araçları |
-| `output/` | Derlenmiş ikili dosyalar ve önyüklenebilir disk imajı (`disk.img`) |
+## Geliştirme ve Kullanım
 
-## Derleme ve Çalıştırma
+### Proje Dizini Yapısı
+- `boot/`: İşlemciyi başlatan ve çekirdeği yükleyen düşük seviyeli kodlar.
+- `kernel/`: Çekirdek bileşenleri, bellek yönetimi ve protokol yığınları.
+- `include/`: Tüm çekirdek ve sürücü başlık dosyaları.
+- `drivers/`: Donanım sürücüleri (Grafik, Ağ, Depolama, Giriş Birimleri).
+- `userland/`: C ile yazılmış ve ELF formatında derlenen kullanıcı uygulamaları.
+- `scripts/`: Otomatik derleme ve disk hazırlama araçları.
 
-### Gereksinimler
-- GCC (i686-elf veya `m32` destekli standart gcc)
-- NASM
-- QEMU (`qemu-system-i386`)
-- Python 3 (Disk enjeksiyon araçları için)
+### Derleme Adımları
+İşletim sistemini derlemek için i686-elf-gcc veya x86-32 destekli standart bir GCC derleyicisi gereklidir.
 
-### Kurulum ve Başlatma
-1. Çekirdek ve sürücülerin derlenmesi:
-   ```bash
-   make all
-   ```
-2. Kullanıcı uygulamalarının derlenmesi ve diske yazılması:
-   ```bash
-   cd userland && bash compile_user.sh
-   ```
-3. İşletim sisteminin QEMU üzerinde başlatılması:
-   ```bash
-   make run
-   ```
+```bash
+# Tüm çekirdek ve sürücüleri derler
+make all
 
-## Geliştirici
+# Kullanıcı modu uygulamalarını derler
+cd userland && bash compile_user.sh
+
+# Sistemi QEMU emülatörü üzerinde başlatır
+make run
+```
+
+## Yol Haritası (Roadmap)
+- [x] Temel Donanım Sürücüleri (Klavye, Fare, Disk)
+- [x] Sanal Dosya Sistemi ve Ext2 Desteği
+- [x] Tam Kapsamlı Ağ Yığını ve Soket API
+- [x] ELF Uygulama Yükleyici
+- [ ] Gelişmiş GUI ve Pencere Yöneticisi
+- [ ] HTTP ve DNS Protokolleri
+- [ ] USB Kontrolcü Desteği (xHCI/EHCI)
+
+## Geliştirici Bilgileri
 **Muhammed Yasir PEKER**
+*Sistem Mühendisi ve İşletim Sistemi Meraklısı*
 
-*Bu proje, düşük seviyeli sistem programlama ve işletim sistemi mimarileri üzerine yapılan derinlemesine bir çalışmanın ürünüdür.*
+Bu proje, akademik bir merak ve düşük seviyeli mühendislik disipliniyle geliştirilmeye devam etmektedir. Tüm hakları saklıdır.
