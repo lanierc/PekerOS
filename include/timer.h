@@ -8,5 +8,6 @@ void init_timer(unsigned int frequency);
 unsigned int timer_get_ticks();
 unsigned int timer_get_seconds();
 void sleep(unsigned int ms);
+void rtc_get_time(int *h, int *m, int *s);
 
 #endif

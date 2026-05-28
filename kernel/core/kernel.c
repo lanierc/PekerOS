@@ -319,6 +319,13 @@ void start_graphics(struct multiboot_info* mbi){
 
 // Kernel Giriş Noktası
 static unsigned int ata_read_device1(vfs_node_t *node, unsigned int offset, unsigned int size, unsigned char *buffer) {
+    // Drive 1 yoksa okuma yapma
+    outb(0x1F6, 0xF0);
+    for(int i=0; i<4; i++) inb(0x1F7);
+    unsigned char st = inb(0x1F7);
+    outb(0x1F6, 0xE0);
+    if (st == 0xFF || st == 0x00) return 0;
+    
     unsigned int start_sector = offset / 512;
     unsigned int end_sector = (offset + size - 1) / 512;
     unsigned char sector_buf[512];
@@ -382,10 +389,17 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     put_hex((unsigned int)test_ptr2);
     put_str("\n[TEST] Bellekler serbest birakiliyor...\n");
     kfree(test_ptr1);
+    put_str("[TEST] ptr1 serbest birakildi.\n");
     kfree(test_ptr2);
+    put_str("[TEST] ptr2 serbest birakildi. Heap temiz.\n");
 
+    put_str("[VFS] PAFS baslatiliyor...\n");
     pafs_init();
+    put_str("[VFS] PAFS baslatildi.\n");
+    
+    put_str("[NET] TCP baslatiliyor...\n");
     tcp_init();
+    put_str("[NET] TCP baslatildi.\n");
 
     // 5. Zamanlayıcıyı başlat (100 Hz = her 10ms'de bir tick)
     init_timer(100);
@@ -397,20 +411,32 @@ void kernel_main(unsigned int magic, struct multiboot_info* mbi) {
     put_str("[VFS] Kök dosya sistemi (PAFS) bağlandı.\n");
 
     // Faz 8: Mount test (VFS_ROOT artik hazir)
+    // Önce Drive 1'in (ikinci ATA disk) var olup olmadığını kontrol et
     put_str("[VFS] /mnt klasoru aranıyor...\n");
-    vfs_node_t *mnt_node = vfs_get_node_by_path(vfs_root, "/mnt");
-    if (mnt_node) {
-        vfs_node_t *dev_ata1 = kmalloc(sizeof(vfs_node_t));
-        memset(dev_ata1, 0, sizeof(vfs_node_t));
-        strcpy(dev_ata1->name, "ata1");
-        dev_ata1->flags = VFS_FILE;
-        dev_ata1->read = (void *)ata_read_device1;
-        
-        extern vfs_node_t *ext2_init(vfs_node_t *dev);
-        vfs_node_t *ext2_root = ext2_init(dev_ata1);
-        if (ext2_root) {
-            vfs_mount("/mnt", ext2_root);
+    unsigned char drive1_status = inb(0x1F7); // Primary status
+    outb(0x1F6, 0xF0); // Drive 1 (Slave) seç
+    for(int i=0; i<4; i++) inb(0x1F7); // 400ns bekle
+    drive1_status = inb(0x1F7);
+    outb(0x1F6, 0xE0); // Drive 0'a geri dön
+    for(int i=0; i<4; i++) inb(0x1F7);
+    
+    if (drive1_status != 0xFF && drive1_status != 0x00) {
+        vfs_node_t *mnt_node = vfs_get_node_by_path(vfs_root, "/mnt");
+        if (mnt_node) {
+            vfs_node_t *dev_ata1 = kmalloc(sizeof(vfs_node_t));
+            memset(dev_ata1, 0, sizeof(vfs_node_t));
+            strcpy(dev_ata1->name, "ata1");
+            dev_ata1->flags = VFS_FILE;
+            dev_ata1->read = (void *)ata_read_device1;
+            
+            extern vfs_node_t *ext2_init(vfs_node_t *dev);
+            vfs_node_t *ext2_root = ext2_init(dev_ata1);
+            if (ext2_root) {
+                vfs_mount("/mnt", ext2_root);
+            }
         }
+    } else {
+        kprintf("[VFS] Drive 1 bulunamadi, EXT2 mount atlanıyor.\n");
     }
 
     // Donanim Kesfi

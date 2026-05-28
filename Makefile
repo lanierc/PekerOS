@@ -26,7 +26,8 @@ FS_SRC      = kernel/fs/pafs.c kernel/fs/vfs.c kernel/fs/ext2.c
 
 DRIVER_SRC  = kernel/drivers/ata.c kernel/drivers/keyboard.c kernel/drivers/mouse.c \
               kernel/drivers/timer.c kernel/drivers/pci.c kernel/drivers/vbe.c \
-              kernel/drivers/font.c kernel/drivers/rtl8139.c kernel/drivers/e1000.c
+              kernel/drivers/font.c kernel/drivers/rtl8139.c kernel/drivers/e1000.c \
+              kernel/drivers/ac97.c
 
 NET_SRC     = kernel/net/net.c kernel/net/socket.c kernel/net/tcp.c
 
@@ -82,6 +83,7 @@ $(KERNEL): $(OBJECTS)
 		$(OUTDIR)/drivers/ata.o $(OUTDIR)/drivers/keyboard.o $(OUTDIR)/drivers/mouse.o \
 		$(OUTDIR)/drivers/timer.o $(OUTDIR)/drivers/pci.o $(OUTDIR)/drivers/vbe.o \
 		$(OUTDIR)/drivers/font.o $(OUTDIR)/drivers/rtl8139.o $(OUTDIR)/drivers/e1000.o \
+		$(OUTDIR)/drivers/ac97.o \
 		output/net/net.o output/net/socket.o output/net/tcp.o \
 		$(OUTDIR)/proc/task.o $(OUTDIR)/proc/tss.o $(OUTDIR)/proc/syscall.o \
 		$(OUTDIR)/proc/elf.o \

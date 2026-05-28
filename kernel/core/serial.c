@@ -15,8 +15,9 @@ int is_transmit_empty() {
 }
 
 void serial_write(char c) {
-    while (is_transmit_empty() == 0);
-    outb(COM1, c);
+    int timeout = 10000;
+    while (is_transmit_empty() == 0 && --timeout);
+    if (timeout > 0) outb(COM1, c);
 }
 
 void serial_print(const char* str) {

@@ -2,6 +2,8 @@
 #include "common.h"
 #include "kheap.h"
 
+static void test_btn_click(gui_widget_t* btn);
+
 static window_t *window_list_head = 0;
 static window_t *window_list_tail = 0;
 
@@ -47,13 +49,24 @@ void gui_on_mouse_event(int x, int y, int buttons) {
     int left_release = !(buttons & 1) && (last_buttons & 1);
 
     if (left_click) {
-        // En öndeki pencereden başlayarak (arkadan öne değil!) ara
+        // 1. Ikonlara mi tiklandi? (Sol taraf 0-100 arasi)
+        if (x < 100) {
+            if (y >= 40 && y <= 90) {
+                window_t *w = gui_create_window("UI Test Paneli", 200, 150, 400, 250, 0x00F39C12);
+                gui_create_label(w, 20, 40, "Merhaba PekerOS GUI!", 0x002F3542);
+                gui_create_button(w, 20, 80, 120, 30, "Tikla Bana", test_btn_click);
+            }
+            else if (y >= 110 && y <= 160) gui_create_window("Terminal", 100, 100, 500, 350, 0x00000000);
+            else if (y >= 180 && y <= 230) gui_create_window("Dosyalar", 300, 200, 450, 300, 0x003498DB);
+        }
+
+        // 2. Pencerelere mi tiklandi? (En öndekinden ara)
         window_t *curr = window_list_tail;
         while (curr) {
             if (x >= curr->x && x <= curr->x + curr->w &&
                 y >= curr->y && y <= curr->y + curr->h) {
                 
-                // Kapatma butonuna mı tıklandı? (X butonu: win->w - 20)
+                // Kapatma butonu...
                 if (x >= curr->x + curr->w - 20 && x <= curr->x + curr->w - 5 &&
                     y >= curr->y + 5 && y <= curr->y + 20) {
                     gui_destroy_window(curr);
@@ -62,11 +75,23 @@ void gui_on_mouse_event(int x, int y, int buttons) {
 
                 gui_bring_to_front(curr);
                 
-                // Başlık çubuğuna mı tıklandı? (Drag kontrolü)
+                // Drag...
                 if (y <= curr->y + 25) {
                     dragged_window = curr;
                     drag_off_x = x - curr->x;
                     drag_off_y = y - curr->y;
+                } else {
+                    // Widget click check
+                    gui_widget_t *w = curr->widgets_head;
+                    while (w) {
+                        int wx = curr->x + w->x;
+                        int wy = curr->y + w->y;
+                        if (x >= wx && x <= wx + w->w && y >= wy && y <= wy + w->h) {
+                            if (w->on_click) w->on_click(w);
+                            break;
+                        }
+                        w = w->next;
+                    }
                 }
                 break;
             }
@@ -86,7 +111,17 @@ void gui_on_mouse_event(int x, int y, int buttons) {
     last_buttons = buttons;
 }
 
-int gui_create_window(char* title, int x, int y, int w, int h, unsigned int color) {
+static void test_btn_click(gui_widget_t* btn) {
+    if (strcmp(btn->text, "Tikla Bana") == 0) {
+        strcpy(btn->text, "Tiklandi!");
+        btn->bg_color = 0x002ED573; // Green
+    } else {
+        strcpy(btn->text, "Tikla Bana");
+        btn->bg_color = 0x00DFE4EA; // Default
+    }
+}
+
+window_t* gui_create_window(char* title, int x, int y, int w, int h, unsigned int color) {
     window_t *win = kmalloc(sizeof(window_t));
     memset(win, 0, sizeof(window_t));
     
@@ -94,6 +129,9 @@ int gui_create_window(char* title, int x, int y, int w, int h, unsigned int colo
     win->color = color;
     win->active = 1;
     strcpy(win->title, title);
+    
+    win->widgets_head = 0;
+    win->widgets_tail = 0;
 
     // Listeye ekle (En öne)
     if (!window_list_head) {
@@ -105,7 +143,51 @@ int gui_create_window(char* title, int x, int y, int w, int h, unsigned int colo
         window_list_tail = win;
     }
 
-    return 0; // Şimdilik handle sistemi yerine node pointer kullanılacak
+    return win; 
+}
+
+gui_widget_t* gui_create_button(window_t* win, int x, int y, int w, int h, char* text, void (*on_click)(gui_widget_t*)) {
+    if (!win) return 0;
+    gui_widget_t *btn = kmalloc(sizeof(gui_widget_t));
+    memset(btn, 0, sizeof(gui_widget_t));
+    
+    btn->type = WIDGET_BUTTON;
+    btn->x = x; btn->y = y; btn->w = w; btn->h = h;
+    strcpy(btn->text, text);
+    btn->bg_color = 0x00DFE4EA; 
+    btn->fg_color = 0x002F3542; 
+    btn->on_click = on_click;
+    
+    if (!win->widgets_head) {
+        win->widgets_head = btn;
+        win->widgets_tail = btn;
+    } else {
+        win->widgets_tail->next = btn;
+        btn->prev = win->widgets_tail;
+        win->widgets_tail = btn;
+    }
+    return btn;
+}
+
+gui_widget_t* gui_create_label(window_t* win, int x, int y, char* text, unsigned int color) {
+    if (!win) return 0;
+    gui_widget_t *lbl = kmalloc(sizeof(gui_widget_t));
+    memset(lbl, 0, sizeof(gui_widget_t));
+    
+    lbl->type = WIDGET_LABEL;
+    lbl->x = x; lbl->y = y; lbl->w = 0; lbl->h = 0;
+    strcpy(lbl->text, text);
+    lbl->fg_color = color;
+    
+    if (!win->widgets_head) {
+        win->widgets_head = lbl;
+        win->widgets_tail = lbl;
+    } else {
+        win->widgets_tail->next = lbl;
+        lbl->prev = win->widgets_tail;
+        win->widgets_tail = lbl;
+    }
+    return lbl;
 }
 
 void gui_draw_icon(int x, int y, char* label, unsigned int color) {
@@ -140,6 +222,29 @@ void gui_draw_window(window_t* win) {
 
     // 5. Başlık Yazısı (Siyah/Koyu Lacivert)
     vbe_write_at(win->x + 10, win->y + 5, win->title, 0x002F3542);
+    
+    // 6. Widget'ları Çiz
+    gui_widget_t *w = win->widgets_head;
+    while (w) {
+        int abs_x = win->x + w->x;
+        int abs_y = win->y + w->y;
+        
+        if (w->type == WIDGET_BUTTON) {
+            vbe_draw_rect(abs_x, abs_y, w->w, w->h, w->bg_color);
+            vbe_draw_rect(abs_x, abs_y, w->w, 1, 0x002F3542);
+            vbe_draw_rect(abs_x, abs_y + w->h - 1, w->w, 1, 0x002F3542);
+            vbe_draw_rect(abs_x, abs_y, 1, w->h, 0x002F3542);
+            vbe_draw_rect(abs_x + w->w - 1, abs_y, 1, w->h, 0x002F3542);
+            int text_len = strlen(w->text);
+            int text_x = abs_x + (w->w / 2) - (text_len * 4);
+            int text_y = abs_y + (w->h / 2) - 8;
+            vbe_write_at(text_x, text_y, w->text, w->fg_color);
+        } else if (w->type == WIDGET_LABEL) {
+            vbe_write_at(abs_x, abs_y, w->text, w->fg_color);
+        }
+        
+        w = w->next;
+    }
 }
 
 void gui_render() {
@@ -169,6 +274,16 @@ void gui_render() {
     vbe_draw_rect(300, 0, 200, 30, 0x00DCDDE1); // Panel gövdesi
     vbe_draw_rect(300, 30, 200, 1, 0x007F8C8D);  // Alt çizgi
     
-    // Panel İçindeki Saat (Temsili)
-    vbe_write_at(360, 8, "12:45 PM", 0x002F3640);
+    // Panel İçindeki Saat (Gercek Zamanli)
+    int h, m, s;
+    extern void rtc_get_time(int *h, int *m, int *s);
+    rtc_get_time(&h, &m, &s);
+    
+    char time_str[16];
+    // Basit itoa/format mantigi (kprintf olmadigi icin manuel)
+    time_str[0] = (h / 10) + '0'; time_str[1] = (h % 10) + '0'; time_str[2] = ':';
+    time_str[3] = (m / 10) + '0'; time_str[4] = (m % 10) + '0'; time_str[5] = ':';
+    time_str[6] = (s / 10) + '0'; time_str[7] = (s % 10) + '0'; time_str[8] = '\0';
+    
+    vbe_write_at(360, 8, time_str, 0x002F3640);
 }

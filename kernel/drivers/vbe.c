@@ -45,30 +45,44 @@ void vbe_init(struct multiboot_info *mb_info) {
     
     // 2. PCI Üzerinden Grafik Kartını Tara (Fallback)
     if (!found) {
-        for (int bus = 0; bus < 8; bus++) { // İlk birkaç bus yeterli
+        put_str("[VBE] PCI uzerinden grafik karti araniyor...\n");
+        for (int bus = 0; bus < 8; bus++) {
             for (int dev = 0; dev < 32; dev++) {
                 unsigned short vendor = pci_config_read_word(bus, dev, 0, 0);
                 if (vendor == 0xFFFF) continue;
                 
                 unsigned short class_sub = pci_config_read_word(bus, dev, 0, 10);
                 if ((class_sub >> 8) == 0x03) { // Display Controller
+                    unsigned short device = pci_config_read_word(bus, dev, 0, 2);
+                    put_str("[VBE] Grafik karti bulundu: ");
+                    put_hex(vendor); put_str(":"); put_hex(device); put_str("\n");
+
                     // BAR0 oku (LFB)
                     lfb_phys = (pci_config_read_word(bus, dev, 0, 0x12) << 16) | pci_config_read_word(bus, dev, 0, 0x10);
                     lfb_phys &= 0xFFFFFFF0;
                     
-                    // BGA Mode Switch
-                    bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED);
-                    bga_write(VBE_DISPI_INDEX_XRES, 800);
-                    bga_write(VBE_DISPI_INDEX_YRES, 600);
-                    bga_write(VBE_DISPI_INDEX_BPP, 32);
-                    bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
-                    
-                    vbe_info.width = 800;
-                    vbe_info.height = 600;
-                    vbe_info.pitch = 800 * 4;
-                    vbe_info.bpp = 32;
-                    found = 1;
-                    break;
+                    // BGA Mode Switch - SADECE QEMU/Bochs ise (Vendor 0x1234)
+                    if (vendor == 0x1234 || vendor == 0x80EE) { // 0x80EE is VirtualBox
+                        put_str("[VBE] BGA moduna geciliyor...\n");
+                        bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_DISABLED);
+                        bga_write(VBE_DISPI_INDEX_XRES, 800);
+                        bga_write(VBE_DISPI_INDEX_YRES, 600);
+                        bga_write(VBE_DISPI_INDEX_BPP, 32);
+                        bga_write(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
+                        
+                        vbe_info.width = 800;
+                        vbe_info.height = 600;
+                        vbe_info.pitch = 800 * 4;
+                        vbe_info.bpp = 32;
+                        found = 1;
+                    } else {
+                        put_str("[VBE] Gercek donanim algilandi. Multiboot mode gerekli.\n");
+                        // Gerçek donanımda VBE modunu BIOS olmadan (Real Mode) değiştiremeyiz.
+                        // Eğer Multiboot ile gelmediyse, mevcut modu kullanmaya çalışalım.
+                        // Ama genişlik/yükseklik bilmediğimiz için güvenli değil.
+                        found = 0;
+                    }
+                    if (found) break;
                 }
             }
             if (found) break;
@@ -113,9 +127,16 @@ void vbe_update() {
     unsigned int *src = back_buffer;
     unsigned int *dest = vbe_info.address;
     int size = (vbe_info.width * vbe_info.height);
-    for(int i = 0; i < size; i++) {
-        dest[i] = src[i];
-    }
+    
+    // İşlemci seviyesinde blok kopyalama (rep movsd) kullanarak 
+    // tek tek piksel kopyalamaktan 10-20 kat daha hızlı sonuç alırız.
+    asm volatile (
+        "cld\n"
+        "rep movsl"
+        :
+        : "S"(src), "D"(dest), "c"(size)
+        : "memory"
+    );
 }
 
 // Belirli bir alani (rect) guncelle (Daha hizli!)

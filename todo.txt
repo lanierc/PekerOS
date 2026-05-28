@@ -17,7 +17,7 @@
     - [x] Multiboot bellek haritasını (mmap) okuma
     - [x] Bitmap tabanlı sayfa takibi (4KB bloklar)
     - [x] `alloc_frame()` / `free_frame()` fonksiyonları
-- [ ] **Sanal Bellek & Sayfalama (Paging)**
+- [x] **Sanal Bellek & Sayfalama (Paging)**
     - [x] Page Directory ve Page Table kurulumu
     - [x] Bellek koruma (Read-only / Supervisor)
     - [x] Higher Half Kernel (Kernel'ın 3GB+ adresine taşınması)
@@ -116,21 +116,20 @@
 ---
 
 ## 🔴 Faz 10: Gelişmiş GUI ve Masaüstü Ortamı
-- [ ] **Pencere Yöneticisi (Window Manager)**
-    - [ ] Çoklu pencere (Compositing/Z-Order) desteği
-    - [ ] Olay güdümlü (Event-driven) mesajlaşma sistemi
-- [ ] **UI Kit**
-    - [ ] Butonlar, Metin kutuları, Menüler
-    - [ ] Font renderlama (TrueType/FreeType portu)
+- [x] **Pencere Yöneticisi (Window Manager)**
+    - [x] Çoklu pencere (Compositing/Z-Order) desteği
+    - [x] Olay güdümlü (Event-driven) mesajlaşma sistemi
+- [/] **UI Kit**
+    - [/] Butonlar, Metin etiketleri (Label) eklendi, (Menüler eksik)
+    - [*] Font renderlama (TrueType/FreeType portu)
 
 ---
-
 ## 🟤 Faz 11: Çevresel Birimler ve Diğerleri
 - [ ] **USB Desteği**
     - [ ] UHCI/OHCI/EHCI/xHCI kontrolcü sürücüleri
     - [ ] USB HID (Klavye, Mouse) ve Mass Storage (USB Bellek)
-- [ ] **Ses (Audio)**
-    - [ ] AC97 veya Intel HDA Ses kartı sürücüsü
-    - [ ] Temel ses çalma API'si
+- [/] **Ses (Audio)**
+    - [x] AC97 veya Intel HDA Ses kartı sürücüsü
+    - [x] Temel ses çalma API'si
 - [ ] **SMP (Symmetric Multiprocessing)**
     - [ ] Çoklu çekirdek desteği (APIC ve Spinlock mekanizmaları)

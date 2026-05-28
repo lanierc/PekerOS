@@ -323,6 +323,19 @@ void execute_command(char* cmd) {
         // Klavye kontrolcüsü üzerinden reset (8042 port 0x64)
         outb(0x64, 0xFE);
     }
+    else if (strcmp(cmd, "beep") == 0) {
+        put_str("AC97 Ses Testi (Bip) baslatiliyor...\n");
+        unsigned int buf_phys = alloc_frame();
+        short *pcm = (short*)(buf_phys * 4096);
+        for(int i = 0; i < 4096 / 2; i+=2) {
+            short val = ((i / 50) % 2 == 0) ? 8000 : -8000;
+            pcm[i] = val;   // Sol kanal
+            pcm[i+1] = val; // Sag kanal
+        }
+        extern void ac97_play(unsigned char* pcm_data, unsigned int length);
+        ac97_play((unsigned char*)pcm, 4096);
+        put_str("Ses DMA'ya gonderildi.\n");
+    }
     else if (strcmp(cmd, "format") == 0) {
         put_str("PAFS bicimlendiriliyor...\n");
         pafs_format();

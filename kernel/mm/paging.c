@@ -40,8 +40,12 @@ void init_paging(void) {
     unsigned int num_tables = (total_frames + 1023) / 1024;
     
     for (unsigned int i = 0; i < num_tables; i++) {
+        // Higher Half Mapping: 0xC0000000 adresinden itibaren (Entry 768)
+        // 32-bit sistemlerde 0xC0000000 ile 0xFFFFFFFF arası sadece 1024MB (256 giriş) yer vardır.
+        unsigned int pd_idx = 768 + i;
+        if (pd_idx >= 1024) break; 
+
         unsigned int pt_frame = alloc_frame();
-        // Page Table fiziksel adresini sanal adrese çeviriyoruz
         struct page_table *pt = (struct page_table *)(pt_frame + 0xC0000000);
 
         for (int j = 0; j < 1024; j++) {
@@ -49,33 +53,23 @@ void init_paging(void) {
             if (frame_idx < total_frames) {
                 unsigned int phys_addr = frame_idx * PAGE_SIZE;
                 int is_readonly = 0;
-
-                // Linker sembolleri artık sanal adres (0xC0100000+).
-                // Karşılaştırmak için sanal adres oluşturuyoruz.
                 unsigned int virt_addr = phys_addr + 0xC0000000;
 
-                // .text (kod) ve .rodata (sabit veriler) alanları yazmaya karşı korunur
-                if (virt_addr >= (unsigned int)&__text_start && virt_addr < (unsigned int)&__text_end) {
-                    is_readonly = 1;
-                }
-                if (virt_addr >= (unsigned int)&__rodata_start && virt_addr < (unsigned int)&__rodata_end) {
-                    is_readonly = 1;
-                }
+                if (virt_addr >= (unsigned int)&__text_start && virt_addr < (unsigned int)&__text_end) is_readonly = 1;
+                if (virt_addr >= (unsigned int)&__rodata_start && virt_addr < (unsigned int)&__rodata_end) is_readonly = 1;
 
                 pt->entries[j].present = 1;
                 pt->entries[j].rw = is_readonly ? 0 : 1;
-                pt->entries[j].user = 1; // Ring 3 erişimine izin ver
+                pt->entries[j].user = 1;
                 pt->entries[j].frame = frame_idx;
             } else {
                 pt->entries[j].present = 0;
             }
         }
 
-        // Higher Half Mapping: 0xC0000000 adresinden itibaren (Entry 768)
-        // 768 + i kullanıyoruz ki fiziksel 0, sanal 3GB'a denk gelsin
         kernel_directory->entries[768 + i].present = 1;
         kernel_directory->entries[768 + i].rw = 1;
-        kernel_directory->entries[768 + i].user = 1; // Ring 3 erişimine izin ver
+        kernel_directory->entries[768 + i].user = 1;
         kernel_directory->entries[768 + i].pt_frame = (pt_frame >> 12);
     }
 

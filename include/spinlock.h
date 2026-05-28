@@ -36,18 +36,19 @@ static inline void irq_restore(unsigned int flags) {
 // Basit spinlock yapısı (Şimdilik sadece kesmeleri kontrol eder)
 typedef struct {
     volatile int locked;
+    unsigned int flags;
 } spinlock_t;
 
-#define SPINLOCK_INIT {0}
+#define SPINLOCK_INIT {0, 0}
 
 static inline void spin_lock(spinlock_t *lock) {
-    asm volatile("cli");
+    lock->flags = irq_save();
     lock->locked = 1;
 }
 
 static inline void spin_unlock(spinlock_t *lock) {
     lock->locked = 0;
-    asm volatile("sti");
+    irq_restore(lock->flags);
 }
 
 #endif

@@ -104,7 +104,7 @@ void pci_init() {
     put_str("BUS  DEV  FUNC  VENDOR  DEVICE  CLASS  DESCRIPTION\n");
     put_str("---  ---  ----  ------  ------  -----  -----------\n");
 
-    for (int bus = 0; bus < 256; bus++) {
+    for (int bus = 0; bus < 32; bus++) {
         for (int dev = 0; dev < 32; dev++) {
             for (int func = 0; func < 8; func++) {
                 unsigned short vendor = pci_config_read_word(bus, dev, func, 0);
@@ -165,6 +165,26 @@ void pci_init() {
                     // Sürücüyü başlat
                     extern void init_e1000(unsigned int phys_addr, unsigned char irq);
                     init_e1000(phys_addr, irq);
+                }
+                else if (vendor == 0x8086 && device == 0x2415) {
+                    put_str("\n[Intel AC97] Cihaz PCI uzerinde bulundu!\n");
+                    
+                    // Bus Mastering and I/O Space Enable
+                    unsigned short command = pci_config_read_word(bus, dev, func, 0x04);
+                    command |= (1 << 2) | (1 << 0); 
+                    pci_config_write_word(bus, dev, func, 0x04, command);
+                    
+                    // NAMBAR (BAR0)
+                    unsigned int nambar = pci_config_read_dword(bus, dev, func, 0x10) & ~3;
+                    
+                    // NABMBAR (BAR1)
+                    unsigned int nabmbar = pci_config_read_dword(bus, dev, func, 0x14) & ~3;
+                    
+                    // IRQ Line
+                    unsigned int irq = pci_config_read_dword(bus, dev, func, 0x3C) & 0xFF;
+                    
+                    extern void init_ac97(unsigned int nambar, unsigned int nabmbar, unsigned char irq);
+                    init_ac97(nambar, nabmbar, irq);
                 }
                 // Eğer cihaz tek fonksiyonluysa diğer fonksiyonları taramaya gerek yok
                 if (func == 0) {

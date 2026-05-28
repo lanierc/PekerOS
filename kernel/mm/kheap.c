@@ -71,6 +71,7 @@ void *kmalloc(unsigned int size) {
 void kfree(void *ptr) {
     if (ptr == 0) return;
 
+    // serial_print("kfree: start\n");
     unsigned int flags = irq_save();
     // Veri adresinden geriye doğru giderek header'ı bul
     struct heap_header *block = (struct heap_header *)((unsigned int)ptr - sizeof(struct heap_header));
@@ -101,4 +102,5 @@ void kfree(void *ptr) {
         }
     }
     irq_restore(flags);
+    // serial_print("kfree: end\n");
 }

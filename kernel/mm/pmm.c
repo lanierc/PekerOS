@@ -105,7 +105,11 @@ void init_pmm(struct multiboot_info *mbi) {
 // --- Frame Ayırma ---
 
 unsigned int alloc_frame(void) {
-    for (unsigned int f = 0; f < total_frames; f++) {
+    // 32-bit Higher Half kernel (0xC0000000) için sadece ilk 1GB ram haritalanabilir (+0xC0000000 ile).
+    // Bu yüzden çekirdek yapısı (sayfa tabloları vb.) için sadece ilk 1GB'tan yer veriyoruz.
+    unsigned int search_limit = (total_frames > 262144) ? 262144 : total_frames;
+
+    for (unsigned int f = 0; f < search_limit; f++) {
         if (!bitmap_test(f)) {
             bitmap_set(f);
             used_frames_count++;
